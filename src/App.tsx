@@ -1,10 +1,8 @@
+import "./App.css";
+import HomePage from "./pages/HomePage";
+
 function App() {
-  return (
-    <div className="app">
-      <h1>⚡ ChargeFlow</h1>
-      <p>Elektrikli araç şarj kayıt uygulaması</p>
-    </div>
-  );
+  return <HomePage />;
 }
 
 export default App;
