@@ -95,11 +95,6 @@ function SessionDetailSheet({ session, onClose, onUpdate, onDelete }: SessionDet
 
   if (!draft) return null;
 
-  const detailStartPercent = Math.min(100, Math.max(0, draft.startBattery));
-  const detailEndPercent = Math.min(100, Math.max(0, draft.endBattery));
-  const detailRangeStart = Math.min(detailStartPercent, detailEndPercent);
-  const detailRangeWidth = Math.max(0, detailEndPercent - detailStartPercent);
-
   function startEditing(field: FieldDefinition) {
     setEditingKey(field.key);
     setEditValue(String(draft?.[field.key] ?? ""));
@@ -156,11 +151,14 @@ function SessionDetailSheet({ session, onClose, onUpdate, onDelete }: SessionDet
   }
 
   function handleDelete() {
+    if (!draft) return;
     onDelete(draft.id);
     onClose();
   }
 
   function renderField(field: FieldDefinition) {
+    if (!draft) return null;
+
     const isEditing = editingKey === field.key;
     return (
       <div className={`detail-field ${isEditing ? "is-editing" : ""}`} key={field.key}>
@@ -224,33 +222,7 @@ function SessionDetailSheet({ session, onClose, onUpdate, onDelete }: SessionDet
 
         <section className="detail-hero-card">
           <div className="detail-battery-flow">
-            <strong>{draft.startBattery}%</strong>
-            <div
-              className="detail-range-progress"
-              role="img"
-              aria-label={`Şarj aralığı yüzde ${detailStartPercent} ile yüzde ${detailEndPercent}`}
-            >
-              <div className="detail-range-track">
-                <div
-                  className="detail-range-active"
-                  style={{
-                    left: `${detailRangeStart}%`,
-                    width: `${detailRangeWidth}%`,
-                  }}
-                />
-                <span
-                  className="detail-range-marker detail-range-marker-start"
-                  style={{ left: `${detailStartPercent}%` }}
-                  aria-hidden="true"
-                />
-                <span
-                  className="detail-range-marker detail-range-marker-end"
-                  style={{ left: `${detailEndPercent}%` }}
-                  aria-hidden="true"
-                />
-              </div>
-            </div>
-            <strong>{draft.endBattery}%</strong>
+            <strong>{draft.startBattery}%</strong><span>⚡</span><div><i style={{ width: `${Math.max(6, draft.endBattery - draft.startBattery)}%` }} /></div><span>⚡</span><strong>{draft.endBattery}%</strong>
           </div>
           <div className="detail-hero-stats">
             <div><span>EKLENEN ENERJİ</span><strong>{draft.energy.toLocaleString("tr-TR", { maximumFractionDigits: 2 })}<small> kWh</small></strong></div>
