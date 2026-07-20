@@ -5,12 +5,37 @@ import type { ChargingSession } from "../types/ChargingSession";
 
 const STORAGE_KEY = "chargeflow-sessions";
 
-function formatDate(date: string) {
-  return new Intl.DateTimeFormat("tr-TR", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(new Date(`${date}T12:00:00`));
+const MONTHS = [
+  "OCA",
+  "ŞUB",
+  "MAR",
+  "NİS",
+  "MAY",
+  "HAZ",
+  "TEM",
+  "AĞU",
+  "EYL",
+  "EKİ",
+  "KAS",
+  "ARA",
+];
+
+function getSessionDate(session: ChargingSession) {
+  return new Date(`${session.date}T${session.time}`);
+}
+
+function getDayDifference(
+  currentSession: ChargingSession,
+  previousSession: ChargingSession,
+) {
+  const milliseconds =
+    getSessionDate(currentSession).getTime() -
+    getSessionDate(previousSession).getTime();
+
+  return Math.max(
+    1,
+    Math.round(milliseconds / (1000 * 60 * 60 * 24)),
+  );
 }
 
 function HomePage() {
@@ -40,23 +65,38 @@ function HomePage() {
   }, [chargingSessions]);
 
   const sortedSessions = useMemo(() => {
-    return [...chargingSessions].sort((first, second) => {
-      const firstDate = new Date(
-        `${first.date}T${first.time}`,
-      ).getTime();
-
-      const secondDate = new Date(
-        `${second.date}T${second.time}`,
-      ).getTime();
-
-      return secondDate - firstDate;
-    });
+    return [...chargingSessions].sort(
+      (first, second) =>
+        getSessionDate(second).getTime() -
+        getSessionDate(first).getTime(),
+    );
   }, [chargingSessions]);
 
-  const totalEnergy = chargingSessions.reduce(
-    (total, session) => total + session.energy,
-    0,
-  );
+  const latestSession = sortedSessions[0];
+
+  const totalEnergy = useMemo(() => {
+    return chargingSessions.reduce(
+      (total, session) => total + session.energy,
+      0,
+    );
+  }, [chargingSessions]);
+
+  const totalDistance = useMemo(() => {
+    if (sortedSessions.length < 2) {
+      return 0;
+    }
+
+    return Math.max(
+      0,
+      sortedSessions[0].odometer -
+        sortedSessions[sortedSessions.length - 1].odometer,
+    );
+  }, [sortedSessions]);
+
+  const averageConsumption =
+    totalDistance > 0
+      ? (totalEnergy / totalDistance) * 100
+      : 0;
 
   function handleSave(session: ChargingSession) {
     setChargingSessions((currentSessions) => [
@@ -68,228 +108,242 @@ function HomePage() {
   }
 
   return (
-    <main className="page">
-      <header className="topbar">
-        <div>
-          <p className="eyebrow">ELEKTRİKLİ ARAÇ ŞARJ TAKİBİ</p>
-
-          <h1 className="logo">
-            <span>⚡</span>
-            ChargeFlow
+    <main className="app-shell">
+      <section className="phone-page">
+        <header className="home-header">
+          <h1 className="brand">
+            Charge<span>Flow</span>
           </h1>
-        </div>
-
-        <div className="vehicle-badge">
-          <span className="vehicle-icon">🚗</span>
-
-          <div>
-            <strong>Tesla Model Y</strong>
-            <small>Long Range</small>
-          </div>
-        </div>
-      </header>
-
-      <section className="summary-grid">
-        <article className="summary-card">
-          <span>Toplam şarj</span>
-          <strong>{chargingSessions.length}</strong>
-          <small>şarj işlemi</small>
-        </article>
-
-        <article className="summary-card">
-          <span>Toplam enerji</span>
-
-          <strong>
-            {totalEnergy.toLocaleString("tr-TR", {
-              maximumFractionDigits: 1,
-            })}
-          </strong>
-
-          <small>kWh</small>
-        </article>
-
-        <article className="summary-card">
-          <span>Ortalama tüketim</span>
-          <strong>17,8</strong>
-          <small>kWh / 100 km</small>
-        </article>
-      </section>
-
-      <section className="month-section">
-        <div className="month-header">
-          <div>
-            <p className="eyebrow">AYLIK KAYITLAR</p>
-            <h2>Temmuz 2026</h2>
-          </div>
 
           <button
-            className="add-button"
+            className="icon-add-button"
             type="button"
+            aria-label="Yeni şarj ekle"
             onClick={() => setIsSheetOpen(true)}
           >
-            <span>＋</span>
-            Yeni şarj
+            +
           </button>
-        </div>
+        </header>
 
-        <div className="timeline">
-          {sortedSessions.map((session, index) => (
-            <div className="timeline-group" key={session.id}>
-              <article className="charge-card">
-                <div className="charge-card-top">
-                  <div>
-                    <span className="date">
-                      {formatDate(session.date)}
-                    </span>
+        {latestSession && (
+          <section className="battery-hero">
+            <div className="battery-visual">
+              <div className="battery-body">
+                <div
+                  className="battery-level"
+                  style={{
+                    width: `${latestSession.endBattery}%`,
+                  }}
+                />
+                <div className="battery-glow" />
+              </div>
 
-                    <span className="time">{session.time}</span>
+              <div className="battery-tip" />
+            </div>
+
+            <div className="battery-copy">
+              <strong>{latestSession.endBattery}%</strong>
+              <span>Son Şarj Bitiş</span>
+              <small>
+                {new Intl.DateTimeFormat("tr-TR").format(
+                  getSessionDate(latestSession),
+                )}{" "}
+                {latestSession.time}
+              </small>
+            </div>
+          </section>
+        )}
+
+        <section className="month-panel">
+          <button className="month-title" type="button">
+            <span>▼</span>
+            TEMMUZ 2026
+            <span className="month-chevron">⌃</span>
+          </button>
+
+          <div className="month-summary">
+            <div className="month-stat">
+              <span className="stat-icon">⚡</span>
+
+              <div>
+                <strong>
+                  {totalEnergy.toLocaleString("tr-TR", {
+                    maximumFractionDigits: 1,
+                  })}
+                  <small> kWh</small>
+                </strong>
+                <span>Toplam Enerji</span>
+              </div>
+            </div>
+
+            <div className="month-stat">
+              <span className="stat-icon">⌁</span>
+
+              <div>
+                <strong>
+                  {averageConsumption.toLocaleString("tr-TR", {
+                    maximumFractionDigits: 1,
+                  })}
+                  <small> kWh/100 km</small>
+                </strong>
+                <span>Ortalama Tüketim</span>
+              </div>
+            </div>
+
+            <div className="month-stat">
+              <span className="stat-icon">▣</span>
+
+              <div>
+                <strong>{chargingSessions.length}</strong>
+                <span>Şarj İşlemi</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="compact-session-list">
+          {sortedSessions.map((session, index) => {
+            const previousSession = sortedSessions[index + 1];
+
+            const distance = previousSession
+              ? Math.max(
+                  0,
+                  session.odometer - previousSession.odometer,
+                )
+              : 0;
+
+            const dayDifference = previousSession
+              ? getDayDifference(session, previousSession)
+              : 0;
+
+            const consumption =
+              distance > 0
+                ? (session.energy / distance) * 100
+                : 0;
+
+            const dailyAverage =
+              dayDifference > 0
+                ? Math.round(distance / dayDifference)
+                : 0;
+
+            const sessionDate = getSessionDate(session);
+
+            return (
+              <article className="compact-session-card" key={session.id}>
+                <span
+                  className="session-accent"
+                  aria-hidden="true"
+                />
+
+                <div className="session-date-block">
+                  <strong>
+                    {String(sessionDate.getDate()).padStart(2, "0")}
+                  </strong>
+                  <span>{MONTHS[sessionDate.getMonth()]}</span>
+                  <small>{sessionDate.getFullYear()}</small>
+                </div>
+
+                <div className="session-main">
+                  <div className="session-percentage-row">
+                    <strong>{session.startBattery}%</strong>
+
+                    <div className="mini-charge-progress">
+                      <span>⚡</span>
+
+                      <div className="mini-charge-track">
+                        <div
+                          className="mini-charge-fill"
+                          style={{
+                            width: `${
+                              session.endBattery -
+                              session.startBattery
+                            }%`,
+                          }}
+                        />
+                      </div>
+
+                      <span>⚡</span>
+                    </div>
+
+                    <strong>{session.endBattery}%</strong>
                   </div>
 
-                  <span className="location">
-                    {session.location}
+                  <div className="session-energy">
+                    <span>⚡</span>
+                    <strong>{session.energy} kWh</strong>
+                  </div>
+                </div>
+
+                <div className="session-analysis">
+                  <span>🚘 {distance.toLocaleString("tr-TR")} km</span>
+
+                  <span>
+                    ⚡{" "}
+                    {consumption.toLocaleString("tr-TR", {
+                      maximumFractionDigits: 1,
+                    })}{" "}
+                    kWh/100 km
+                  </span>
+
+                  <span>▣ {dayDifference} gün</span>
+
+                  <span>
+                    ◴ {dailyAverage.toLocaleString("tr-TR")} km/gün
                   </span>
                 </div>
 
-                <div className="charge-progress">
-                  <div className="charge-progress-labels">
-                    <span
-                      className="progress-value"
-                      style={{
-                        left: `${session.startBattery}%`,
-                      }}
-                    >
-                      %{session.startBattery}
-                    </span>
-
-                    <span
-                      className="progress-value"
-                      style={{
-                        left: `${session.endBattery}%`,
-                      }}
-                    >
-                      %{session.endBattery}
-                    </span>
-                  </div>
-
-                  <div className="charge-track">
-                    <div
-                      className="charge-track-before"
-                      style={{
-                        width: `${session.startBattery}%`,
-                      }}
-                    />
-
-                    <div
-                      className="charge-track-active"
-                      style={{
-                        left: `${session.startBattery}%`,
-                        width: `${
-                          session.endBattery -
-                          session.startBattery
-                        }%`,
-                      }}
-                    />
-
-                    <div
-                      className="charge-marker charge-marker-start"
-                      style={{
-                        left: `${session.startBattery}%`,
-                      }}
-                    >
-                      ⚡
-                    </div>
-
-                    <div
-                      className="charge-marker charge-marker-end"
-                      style={{
-                        left: `${session.endBattery}%`,
-                      }}
-                    >
-                      ⚡
-                    </div>
-                  </div>
-
-                  <div className="charge-scale">
-                    <span>0%</span>
-                    <span>20%</span>
-                    <span>40%</span>
-                    <span>60%</span>
-                    <span>80%</span>
-                    <span>100%</span>
-                  </div>
-                </div>
-
-                <div className="charge-details">
-                  <div>
-                    <span>Eklenen enerji</span>
-                    <strong>{session.energy} kWh</strong>
-                  </div>
-
-                  <div>
-                    <span>Kilometre</span>
-
-                    <strong>
-                      {session.odometer.toLocaleString("tr-TR")} km
-                    </strong>
-                  </div>
-
-                  <div>
-                    <span>Toplam tutar</span>
-
-                    <strong>
-                      {session.cost.toLocaleString("tr-TR", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}{" "}
-                      TL
-                    </strong>
-                  </div>
-                </div>
+                <button
+                  className="session-open-button"
+                  type="button"
+                  aria-label="Şarj detaylarını aç"
+                >
+                  ›
+                </button>
               </article>
+            );
+          })}
+        </section>
 
-              {index < sortedSessions.length - 1 && (
-                <article className="analysis-card">
-                  <span>SÜRÜŞ ANALİZİ</span>
+        <section className="collapsed-months">
+          <button className="collapsed-month" type="button">
+            <strong>▶ HAZİRAN 2026</strong>
+            <span>198,5 kWh</span>
+            <span>14,1 kWh/100 km</span>
+          </button>
 
-                  <div className="analysis-grid">
-                    <div>
-                      <strong>
-                        {Math.max(
-                          0,
-                          session.odometer -
-                            sortedSessions[index + 1].odometer,
-                        ).toLocaleString("tr-TR")}{" "}
-                        km
-                      </strong>
-
-                      <small>Gidilen mesafe</small>
-                    </div>
-
-                    <div>
-                      <strong>15,2</strong>
-                      <small>kWh / 100 km</small>
-                    </div>
-
-                    <div>
-                      <strong>4 gün</strong>
-                      <small>Şarj aralığı</small>
-                    </div>
-
-                    <div>
-                      <strong>88 km</strong>
-                      <small>Günlük ortalama</small>
-                    </div>
-                  </div>
-                </article>
-              )}
-            </div>
-          ))}
-        </div>
+          <button className="collapsed-month" type="button">
+            <strong>▶ MAYIS 2026</strong>
+            <span>176,2 kWh</span>
+            <span>13,7 kWh/100 km</span>
+          </button>
+        </section>
       </section>
+
+      <nav className="bottom-navigation">
+        <button className="nav-item active" type="button">
+          <span>⌂</span>
+          <small>Ana Sayfa</small>
+        </button>
+
+        <button className="nav-item" type="button">
+          <span>▥</span>
+          <small>İstatistikler</small>
+        </button>
+
+        <button className="nav-item" type="button">
+          <span>◴</span>
+          <small>Geçmiş</small>
+        </button>
+
+        <button className="nav-item" type="button">
+          <span>⚙</span>
+          <small>Ayarlar</small>
+        </button>
+      </nav>
 
       <AddChargeSheet
         isOpen={isSheetOpen}
-        lastSession={sortedSessions[0]}
+        lastSession={latestSession}
         onClose={() => setIsSheetOpen(false)}
         onSave={handleSave}
       />
