@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - master
-
   workflow_dispatch:
 
 permissions:
@@ -36,10 +35,8 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Setup Pages
+      - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
-         with:
-    enablement: true
 
       - name: Upload site
         uses: actions/upload-pages-artifact@v3
