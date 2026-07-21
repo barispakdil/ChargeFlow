@@ -1,6 +1,7 @@
 import { useState } from "react";
 import AddChargeSheet from "../components/AddChargeSheet";
 import BottomNavigation from "../components/BottomNavigation";
+import BackupView from "../components/BackupView";
 import HomeHeader from "../components/HomeHeader";
 import MonthGroup from "../components/MonthGroup";
 import SessionDetailSheet from "../components/SessionDetailSheet";
@@ -24,6 +25,7 @@ function HomePage() {
     addChargingSession,
     updateChargingSession,
     deleteChargingSession,
+    importChargingSessions,
   } = useChargingSessions();
 
   function handleSave(session: ChargingSession) {
@@ -82,7 +84,12 @@ function HomePage() {
           <TabPlaceholder type="analysis" />
         )}
 
-        {activeTab === "more" && <TabPlaceholder type="more" />}
+        {activeTab === "more" && (
+          <BackupView
+            sessions={sortedSessions}
+            onImport={importChargingSessions}
+          />
+        )}
       </section>
 
       <BottomNavigation activeTab={activeTab} onChange={setActiveTab} />

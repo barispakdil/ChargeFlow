@@ -1,0 +1,22 @@
+ChargeFlow v0.6 değişiklikleri
+
+1. JSON yedeği dışa aktarma
+- Diğer sekmesinde JSON yedeği oluşturma
+- iPhone paylaşım menüsü / Dosyalar / iCloud Drive desteği
+- Tarihli dosya adı
+- Son yedek tarihini gösterme
+
+2. JSON yedeği içe aktarma
+- ChargeFlow dosya ve sürüm doğrulaması
+- Bozuk veya farklı uygulamaya ait JSON'u reddetme
+- Mevcut verilerle birleştirme
+- Tüm kayıtları yedekle değiştirme
+- Aynı kayıtların çoğalmasını önleme
+
+3. Alt menü çakışması düzeltmesi
+- Alt navigasyonun z-index değeri yükseltildi
+- Sticky ay özetleri alt menünün arkasında kalacak şekilde düzenlendi
+- Sayfa alt boşluğu artırıldı
+
+Kontrol:
+- npm run build başarıyla tamamlandı.

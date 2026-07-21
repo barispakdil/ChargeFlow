@@ -5,6 +5,7 @@ import {
   loadChargingSessions,
   saveChargingSessions,
 } from "../utils/storage";
+import { mergeSessionCollections } from "../utils/backup";
 import {
   calculateStatisticsSummary,
   groupSessionsByMonth,
@@ -60,6 +61,17 @@ export function useChargingSessions() {
     );
   }
 
+  function importChargingSessions(
+    importedSessions: ChargingSession[],
+    mode: "merge" | "replace",
+  ) {
+    setChargingSessions((currentSessions) =>
+      mode === "replace"
+        ? importedSessions
+        : mergeSessionCollections(currentSessions, importedSessions),
+    );
+  }
+
   return {
     chargingSessions,
     sortedSessions,
@@ -69,5 +81,6 @@ export function useChargingSessions() {
     addChargingSession,
     updateChargingSession,
     deleteChargingSession,
+    importChargingSessions,
   };
 }
