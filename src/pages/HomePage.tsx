@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import AddChargeSheet from "../components/AddChargeSheet";
 import BottomNavigation from "../components/BottomNavigation";
 import BackupView from "../components/BackupView";
@@ -10,12 +10,21 @@ import TabPlaceholder from "../components/TabPlaceholder";
 import { useChargingSessions } from "../hooks/useChargingSessions";
 import type { ChargingSession } from "../types/ChargingSession";
 import type { ActiveTab } from "../types/navigation";
+import type { VehicleSettings } from "../types/VehicleSettings";
+import { loadVehicleSettings, saveVehicleSettings } from "../utils/vehicleSettings";
 
 function HomePage() {
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
   const [selectedSession, setSelectedSession] =
     useState<ChargingSession | null>(null);
   const [activeTab, setActiveTab] = useState<ActiveTab>("home");
+  const [vehicleSettings, setVehicleSettings] = useState<VehicleSettings>(() =>
+    loadVehicleSettings(),
+  );
+
+  useEffect(() => {
+    saveVehicleSettings(vehicleSettings);
+  }, [vehicleSettings]);
 
   const {
     sortedSessions,
@@ -88,6 +97,8 @@ function HomePage() {
           <BackupView
             sessions={sortedSessions}
             onImport={importChargingSessions}
+            vehicleSettings={vehicleSettings}
+            onVehicleSettingsChange={setVehicleSettings}
           />
         )}
       </section>
@@ -99,6 +110,7 @@ function HomePage() {
         lastSession={latestSession}
         onClose={() => setIsAddSheetOpen(false)}
         onSave={handleSave}
+        vehicleSettings={vehicleSettings}
       />
 
       <SessionDetailSheet

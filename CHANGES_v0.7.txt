@@ -1,0 +1,10 @@
+ChargeFlow v0.7
+
+- Diğer > Araç ayarları bölümüne araç modeli ve kullanılabilir batarya kapasitesi (kWh) alanları eklendi.
+- Araç ayarları cihazda localStorage içinde saklanır.
+- Yeni şarj ekranında başlangıç ve bitiş yüzdesine göre tahmini enerji otomatik hesaplanır.
+- Formül: batarya kapasitesi × (bitiş yüzdesi - başlangıç yüzdesi) / 100.
+- Tahmini enerji soluk/saydam gösterilir ve alana dokunularak manuel değerle değiştirilebilir.
+- Yeni şarj ekranında kapatma düğmesi sol üste, logo ortaya, kaydet onayı sağ üste taşındı.
+- Formun altındaki eski kaydet düğmesi kaldırıldı.
+- TypeScript ve production PWA build testi başarıyla tamamlandı.

@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import ChargeFlowLogo from "./ChargeFlowLogo";
 import type { ChargingSession } from "../types/ChargingSession";
+import type { VehicleSettings } from "../types/VehicleSettings";
 
 interface AddChargeSheetProps {
   isOpen: boolean;
   lastSession?: ChargingSession;
   onClose: () => void;
   onSave: (session: ChargingSession) => void;
+  vehicleSettings: VehicleSettings;
 }
 
 type TireType = NonNullable<ChargingSession["tireType"]>;
@@ -47,12 +49,14 @@ function AddChargeSheet({
   lastSession,
   onClose,
   onSave,
+  vehicleSettings,
 }: AddChargeSheetProps) {
   const [date, setDate] = useState(getCurrentDate());
   const [time, setTime] = useState(getCurrentTime());
   const [startBattery, setStartBattery] = useState("");
   const [endBattery, setEndBattery] = useState("80");
   const [energy, setEnergy] = useState("");
+  const [isEnergyManual, setIsEnergyManual] = useState(false);
   const [odometer, setOdometer] = useState("");
   const [pricePerKwh, setPricePerKwh] = useState("");
   const [cost, setCost] = useState("");
@@ -78,6 +82,7 @@ function AddChargeSheet({
     setStartBattery("");
     setEndBattery("80");
     setEnergy("");
+    setIsEnergyManual(false);
     setError("");
 
     setOdometer(lastSession ? String(lastSession.odometer) : "");
@@ -102,6 +107,34 @@ function AddChargeSheet({
     setOpenSelector(null);
     setCost("");
   }, [isOpen, lastSession]);
+
+
+  useEffect(() => {
+    if (isEnergyManual) return;
+
+    const startValue = Number(startBattery);
+    const endValue = Number(endBattery);
+    const capacity = vehicleSettings.batteryCapacityKwh;
+
+    if (
+      startBattery === "" ||
+      endBattery === "" ||
+      capacity === null ||
+      capacity <= 0 ||
+      endValue <= startValue
+    ) {
+      setEnergy("");
+      return;
+    }
+
+    const estimatedEnergy = capacity * ((endValue - startValue) / 100);
+    setEnergy(estimatedEnergy.toFixed(1));
+  }, [
+    startBattery,
+    endBattery,
+    vehicleSettings.batteryCapacityKwh,
+    isEnergyManual,
+  ]);
 
   useEffect(() => {
     const energyValue = parseNumber(energy);
@@ -224,27 +257,38 @@ function AddChargeSheet({
       >
         <div className="sheet-handle" />
 
-        <div className="premium-sheet-header">
-          <div className="premium-sheet-title">
-            <ChargeFlowLogo compact />
-            <div>
-              <p className="eyebrow">YENİ KAYIT</p>
-              <h2>Yeni şarj</h2>
-              <small>Şarj verilerini hızlıca kaydet</small>
-            </div>
-          </div>
-
+        <div className="premium-sheet-header add-charge-topbar">
           <button
-            className="sheet-close-button"
+            className="sheet-close-button add-charge-header-action"
             type="button"
             onClick={onClose}
             aria-label="Formu kapat"
           >
             ×
           </button>
+
+          <div className="add-charge-centered-logo">
+            <ChargeFlowLogo compact />
+          </div>
+
+          <button
+            className="add-charge-save-button add-charge-header-action"
+            type="submit"
+            form="add-charge-form"
+            aria-label="Şarjı kaydet"
+            title="Şarjı kaydet"
+          >
+            ✓
+          </button>
         </div>
 
-        <form className="charge-form compact-charge-form" onSubmit={handleSubmit}>
+        <div className="add-charge-heading">
+          <p className="eyebrow">YENİ KAYIT</p>
+          <h2>Yeni şarj</h2>
+          <small>Şarj verilerini hızlıca kaydet</small>
+        </div>
+
+        <form id="add-charge-form" className="charge-form compact-charge-form" onSubmit={handleSubmit}>
           <section className="charge-form-section">
             <div className="charge-form-section-heading">
               <span>ZAMAN</span>
@@ -364,13 +408,31 @@ function AddChargeSheet({
                     min="0"
                     step="0.01"
                     inputMode="decimal"
+                    className={isEnergyManual ? "" : "estimated-energy-input"}
                     value={energy}
-                    onChange={(event) => setEnergy(event.target.value)}
-                    placeholder="46.2"
+                    onFocus={(event) => {
+                      if (!isEnergyManual && energy) event.currentTarget.select();
+                    }}
+                    onChange={(event) => {
+                      setIsEnergyManual(true);
+                      setEnergy(event.target.value);
+                    }}
+                    placeholder={
+                      vehicleSettings.batteryCapacityKwh
+                        ? "Başlangıç ve bitişi gir"
+                        : "Araç ayarını gir"
+                    }
                     required
                   />
                   <strong>kWh</strong>
                 </div>
+                <small className="estimated-energy-note">
+                  {isEnergyManual
+                    ? "Manuel değer"
+                    : vehicleSettings.batteryCapacityKwh
+                      ? `Tahmini · ${vehicleSettings.model || "Araç"} · ${vehicleSettings.batteryCapacityKwh} kWh`
+                      : "Diğer > Araç ayarlarından batarya kapasitesini gir"}
+                </small>
               </label>
 
               <label className="form-field compact-field">
@@ -575,10 +637,6 @@ function AddChargeSheet({
 
           {error && <div className="form-error">{error}</div>}
 
-          <button className="save-charge-button premium-save-button" type="submit">
-            <span>ϟ</span>
-            Şarjı kaydet
-          </button>
         </form>
       </section>
     </div>

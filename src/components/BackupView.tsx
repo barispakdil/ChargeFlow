@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import type { ChargingSession } from "../types/ChargingSession";
+import type { VehicleSettings } from "../types/VehicleSettings";
 import {
   buildBackupFileName,
   createBackup,
@@ -13,6 +14,8 @@ type ImportMode = "merge" | "replace";
 interface BackupViewProps {
   sessions: ChargingSession[];
   onImport: (sessions: ChargingSession[], mode: ImportMode) => void;
+  vehicleSettings: VehicleSettings;
+  onVehicleSettingsChange: (settings: VehicleSettings) => void;
 }
 
 function formatBackupDate(value: string | null) {
@@ -27,7 +30,12 @@ function formatBackupDate(value: string | null) {
   }).format(new Date(value));
 }
 
-function BackupView({ sessions, onImport }: BackupViewProps) {
+function BackupView({
+  sessions,
+  onImport,
+  vehicleSettings,
+  onVehicleSettingsChange,
+}: BackupViewProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [lastBackupDate, setLastBackupDate] = useState(() =>
     localStorage.getItem(LAST_BACKUP_DATE_KEY),
@@ -37,6 +45,11 @@ function BackupView({ sessions, onImport }: BackupViewProps) {
   const [importMode, setImportMode] = useState<ImportMode>("merge");
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
+  const [vehicleModel, setVehicleModel] = useState(vehicleSettings.model);
+  const [batteryCapacity, setBatteryCapacity] = useState(
+    vehicleSettings.batteryCapacityKwh?.toString() || "",
+  );
+  const [vehicleMessage, setVehicleMessage] = useState("");
 
   function showMessage(text: string, error = false) {
     setMessage(text);
@@ -112,6 +125,26 @@ function BackupView({ sessions, onImport }: BackupViewProps) {
     setPendingFileName("");
   }
 
+  function saveVehicleProfile() {
+    const capacity = Number(batteryCapacity.replace(",", "."));
+
+    if (!vehicleModel.trim()) {
+      setVehicleMessage("Araç modelini girin.");
+      return;
+    }
+
+    if (!Number.isFinite(capacity) || capacity <= 0 || capacity > 250) {
+      setVehicleMessage("Batarya kapasitesi 1 ile 250 kWh arasında olmalıdır.");
+      return;
+    }
+
+    onVehicleSettingsChange({
+      model: vehicleModel.trim(),
+      batteryCapacityKwh: capacity,
+    });
+    setVehicleMessage("Araç ayarları kaydedildi.");
+  }
+
   return (
     <section className="backup-page">
       <header className="backup-page-header">
@@ -119,6 +152,60 @@ function BackupView({ sessions, onImport }: BackupViewProps) {
         <h1>Yedekleme</h1>
         <p>Şarj kayıtlarını JSON dosyası olarak sakla veya eski bir yedeği geri yükle.</p>
       </header>
+
+      <section className="vehicle-settings-card">
+        <div className="backup-action-heading">
+          <span>🚗</span>
+          <div>
+            <strong>Araç ayarları</strong>
+            <small>Şarj yüzdesinden tahmini eklenen enerjiyi hesaplamak için kullanılır.</small>
+          </div>
+        </div>
+
+        <div className="vehicle-settings-grid">
+          <label className="form-field compact-field">
+            <span>Araç modeli</span>
+            <input
+              type="text"
+              value={vehicleModel}
+              onChange={(event) => {
+                setVehicleModel(event.target.value);
+                setVehicleMessage("");
+              }}
+              placeholder="Tesla Model Y"
+            />
+          </label>
+
+          <label className="form-field compact-field">
+            <span>Batarya kapasitesi</span>
+            <div className="input-with-unit">
+              <input
+                type="number"
+                min="1"
+                max="250"
+                step="0.1"
+                inputMode="decimal"
+                value={batteryCapacity}
+                onChange={(event) => {
+                  setBatteryCapacity(event.target.value);
+                  setVehicleMessage("");
+                }}
+                placeholder="75"
+              />
+              <strong>kWh</strong>
+            </div>
+          </label>
+        </div>
+
+        <button className="backup-primary-button vehicle-settings-save" type="button" onClick={saveVehicleProfile}>
+          Araç ayarlarını kaydet
+        </button>
+        {vehicleMessage && (
+          <div className={`vehicle-settings-message ${vehicleMessage.includes("kaydedildi") ? "success" : "error"}`}>
+            {vehicleMessage}
+          </div>
+        )}
+      </section>
 
       <section className="backup-status-card">
         <span className="backup-status-icon">◆</span>
