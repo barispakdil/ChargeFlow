@@ -1,14 +1,15 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
-import type { ChargingSession } from "../types/ChargingSession";
-import type { VehicleSettings } from "../types/VehicleSettings";
 import type { CardStyle, ColorTheme, ThemeMode, ThemeSettings } from "../types/ThemeSettings";
+import type { VehicleProfile } from "../types/VehicleProfile";
+import type { ChargeFlowBackup } from "../utils/backup";
 import {
   buildBackupFileName,
   createBackup,
   LAST_BACKUP_DATE_KEY,
   parseBackup,
 } from "../utils/backup";
+import { loadVehicleSessions } from "../utils/garage";
 
 type ImportMode = "merge" | "replace";
 
@@ -22,71 +23,114 @@ const colorThemes: Array<{ id: ColorTheme; name: string; colors: string[] }> = [
   { id: "graphite", name: "Graphite", colors: ["#aeb8c4", "#e0e5eb"] },
 ];
 
-
 interface BackupViewProps {
-  sessions: ChargingSession[];
-  onImport: (sessions: ChargingSession[], mode: ImportMode) => void;
-  vehicleSettings: VehicleSettings;
-  onVehicleSettingsChange: (settings: VehicleSettings) => void;
+  vehicles: VehicleProfile[];
+  activeVehicleId: string;
+  onActiveVehicleChange: (vehicleId: string) => void;
+  onAddVehicle: (name: string, model: string, batteryCapacityKwh: number) => void;
+  onUpdateVehicle: (vehicle: VehicleProfile) => void;
+  onDeleteVehicle: (vehicleId: string) => void;
+  onRestoreBackup: (backup: ChargeFlowBackup, mode: ImportMode) => void;
   themeSettings: ThemeSettings;
   onThemeSettingsChange: (settings: ThemeSettings) => void;
 }
 
 function formatBackupDate(value: string | null) {
   if (!value) return "Henüz yedek alınmadı";
-
   return new Intl.DateTimeFormat("tr-TR", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
+    day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit",
   }).format(new Date(value));
 }
 
 function BackupView({
-  sessions,
-  onImport,
-  vehicleSettings,
-  onVehicleSettingsChange,
+  vehicles,
+  activeVehicleId,
+  onActiveVehicleChange,
+  onAddVehicle,
+  onUpdateVehicle,
+  onDeleteVehicle,
+  onRestoreBackup,
   themeSettings,
   onThemeSettingsChange,
 }: BackupViewProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [lastBackupDate, setLastBackupDate] = useState(() =>
-    localStorage.getItem(LAST_BACKUP_DATE_KEY),
-  );
-  const [pendingSessions, setPendingSessions] = useState<ChargingSession[] | null>(null);
+  const activeVehicle = vehicles.find((vehicle) => vehicle.id === activeVehicleId) ?? vehicles[0];
+  const [lastBackupDate, setLastBackupDate] = useState(() => localStorage.getItem(LAST_BACKUP_DATE_KEY));
+  const [pendingBackup, setPendingBackup] = useState<ChargeFlowBackup | null>(null);
   const [pendingFileName, setPendingFileName] = useState("");
   const [importMode, setImportMode] = useState<ImportMode>("merge");
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
-  const [vehicleModel, setVehicleModel] = useState(vehicleSettings.model);
-  const [batteryCapacity, setBatteryCapacity] = useState(
-    vehicleSettings.batteryCapacityKwh?.toString() || "",
-  );
+  const [vehicleName, setVehicleName] = useState(activeVehicle?.name ?? "");
+  const [vehicleModel, setVehicleModel] = useState(activeVehicle?.model ?? "");
+  const [batteryCapacity, setBatteryCapacity] = useState(activeVehicle?.batteryCapacityKwh?.toString() ?? "");
+  const [isAddingVehicle, setIsAddingVehicle] = useState(false);
   const [vehicleMessage, setVehicleMessage] = useState("");
+
+  useEffect(() => {
+    setVehicleName(activeVehicle?.name ?? "");
+    setVehicleModel(activeVehicle?.model ?? "");
+    setBatteryCapacity(activeVehicle?.batteryCapacityKwh?.toString() ?? "");
+    setVehicleMessage("");
+    setIsAddingVehicle(false);
+  }, [activeVehicleId, activeVehicle]);
 
   function showMessage(text: string, error = false) {
     setMessage(text);
     setIsError(error);
   }
 
-  async function exportBackup() {
-    const backup = createBackup(sessions);
-    const fileName = buildBackupFileName();
-    const json = JSON.stringify(backup, null, 2);
-    const file = new File([json], fileName, { type: "application/json" });
+  function parseCapacity() {
+    const capacity = Number(batteryCapacity.replace(",", "."));
+    if (!Number.isFinite(capacity) || capacity <= 0 || capacity > 250) {
+      setVehicleMessage("Batarya kapasitesi 1 ile 250 kWh arasında olmalıdır.");
+      return null;
+    }
+    return capacity;
+  }
 
+  function saveVehicleProfile() {
+    const capacity = parseCapacity();
+    if (capacity === null) return;
+    if (!vehicleName.trim()) {
+      setVehicleMessage("Araç için ayırt edici bir ad girin.");
+      return;
+    }
+    if (isAddingVehicle) {
+      onAddVehicle(vehicleName, vehicleModel, capacity);
+      setVehicleMessage("Yeni araç oluşturuldu.");
+      setIsAddingVehicle(false);
+      return;
+    }
+    if (!activeVehicle) return;
+    onUpdateVehicle({
+      ...activeVehicle,
+      name: vehicleName.trim(),
+      model: vehicleModel.trim(),
+      batteryCapacityKwh: capacity,
+    });
+    setVehicleMessage("Araç bilgileri kaydedildi.");
+  }
+
+  function startAddingVehicle() {
+    setIsAddingVehicle(true);
+    setVehicleName("");
+    setVehicleModel("");
+    setBatteryCapacity("");
+    setVehicleMessage("");
+  }
+
+  async function exportBackup() {
+    const backup = createBackup(vehicles, activeVehicleId, loadVehicleSessions);
+    const totalSessions = backup.vehicles.reduce((sum, entry) => sum + entry.sessions.length, 0);
+    const fileName = buildBackupFileName();
+    const file = new File([JSON.stringify(backup, null, 2)], fileName, { type: "application/json" });
     try {
-      if (
-        navigator.share &&
-        navigator.canShare?.({ files: [file] })
-      ) {
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
         await navigator.share({
           files: [file],
           title: "ChargeFlow yedeği",
-          text: `${sessions.length} şarj kaydının yedeği`,
+          text: `${vehicles.length} araç ve ${totalSessions} şarj kaydının yedeği`,
         });
       } else {
         const url = URL.createObjectURL(file);
@@ -98,11 +142,10 @@ function BackupView({
         anchor.remove();
         URL.revokeObjectURL(url);
       }
-
       const now = new Date().toISOString();
       localStorage.setItem(LAST_BACKUP_DATE_KEY, now);
       setLastBackupDate(now);
-      showMessage(`${sessions.length} kayıt içeren yedek hazırlandı.`);
+      showMessage(`${vehicles.length} araç ve ${totalSessions} kayıt tek JSON dosyasında yedeklendi.`);
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
       showMessage("Yedek dosyası oluşturulamadı. Lütfen tekrar deneyin.", true);
@@ -113,285 +156,164 @@ function BackupView({
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
-
     try {
       const backup = parseBackup(await file.text());
-      setPendingSessions(backup.sessions);
+      setPendingBackup(backup);
       setPendingFileName(file.name);
       setImportMode("merge");
       showMessage("");
     } catch (error) {
-      showMessage(
-        error instanceof Error ? error.message : "Yedek dosyası okunamadı.",
-        true,
-      );
+      showMessage(error instanceof Error ? error.message : "Yedek dosyası okunamadı.", true);
     }
   }
 
   function completeImport() {
-    if (!pendingSessions) return;
-
-    onImport(pendingSessions, importMode);
-    showMessage(
-      importMode === "merge"
-        ? `${pendingSessions.length} kayıt mevcut verilerle birleştirildi.`
-        : `${pendingSessions.length} kayıt yedekten geri yüklendi.`,
-    );
-    setPendingSessions(null);
+    if (!pendingBackup) return;
+    onRestoreBackup(pendingBackup, importMode);
+    const totalSessions = pendingBackup.vehicles.reduce((sum, entry) => sum + entry.sessions.length, 0);
+    showMessage(`${pendingBackup.vehicles.length} araç ve ${totalSessions} şarj kaydı geri yüklendi.`);
+    setPendingBackup(null);
     setPendingFileName("");
   }
 
-  function saveVehicleProfile() {
-    const capacity = Number(batteryCapacity.replace(",", "."));
-
-    if (!vehicleModel.trim()) {
-      setVehicleMessage("Araç modelini girin.");
-      return;
-    }
-
-    if (!Number.isFinite(capacity) || capacity <= 0 || capacity > 250) {
-      setVehicleMessage("Batarya kapasitesi 1 ile 250 kWh arasında olmalıdır.");
-      return;
-    }
-
-    onVehicleSettingsChange({
-      model: vehicleModel.trim(),
-      batteryCapacityKwh: capacity,
-    });
-    setVehicleMessage("Araç ayarları kaydedildi.");
-  }
+  const totalSessions = vehicles.reduce((sum, vehicle) => sum + loadVehicleSessions(vehicle.id).length, 0);
 
   return (
     <section className="backup-page">
       <header className="backup-page-header">
-        <p className="eyebrow">VERİ GÜVENLİĞİ</p>
-        <h1>Yedekleme</h1>
-        <p>Şarj kayıtlarını JSON dosyası olarak sakla veya eski bir yedeği geri yükle.</p>
+        <p className="eyebrow">AYARLAR VE VERİ GÜVENLİĞİ</p>
+        <h1>Kişiselleştirme</h1>
+        <p>Araçlarını, görünümü ve tüm ChargeFlow verilerini tek yerden yönet.</p>
       </header>
-
-      <section className="appearance-settings-card">
-        <div className="backup-action-heading">
-          <span>◐</span>
-          <div>
-            <strong>Görünüm</strong>
-            <small>Uygulamanın temasını, vurgu rengini ve kart görünümünü kişiselleştir.</small>
-          </div>
-        </div>
-
-        <div className="appearance-setting-block">
-          <span className="appearance-label">Tema modu</span>
-          <div className="appearance-segmented-control">
-            {([
-              ["system", "Otomatik"],
-              ["light", "Açık"],
-              ["dark", "Koyu"],
-            ] as Array<[ThemeMode, string]>).map(([value, label]) => (
-              <button
-                key={value}
-                type="button"
-                className={themeSettings.mode === value ? "active" : ""}
-                onClick={() => onThemeSettingsChange({ ...themeSettings, mode: value })}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          <small className="appearance-helper">Otomatik seçeneği telefonun açık/koyu görünümünü anında takip eder.</small>
-        </div>
-
-        <div className="appearance-setting-block">
-          <span className="appearance-label">Renk teması</span>
-          <div className="theme-swatch-grid">
-            {colorThemes.map((theme) => (
-              <button
-                key={theme.id}
-                type="button"
-                className={`theme-swatch ${themeSettings.colorTheme === theme.id ? "selected" : ""}`}
-                onClick={() => onThemeSettingsChange({ ...themeSettings, colorTheme: theme.id })}
-              >
-                <span className="theme-color-preview">
-                  {theme.colors.map((color) => <i key={color} style={{ background: color }} />)}
-                </span>
-                <strong>{theme.name}</strong>
-                <span className="theme-check">✓</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="appearance-setting-block">
-          <span className="appearance-label">Kart stili</span>
-          <div className="appearance-segmented-control card-style-control">
-            {([
-              ["modern", "Modern"],
-              ["glass", "Cam"],
-              ["minimal", "Minimal"],
-            ] as Array<[CardStyle, string]>).map(([value, label]) => (
-              <button
-                key={value}
-                type="button"
-                className={themeSettings.cardStyle === value ? "active" : ""}
-                onClick={() => onThemeSettingsChange({ ...themeSettings, cardStyle: value })}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </section>
 
       <section className="vehicle-settings-card">
         <div className="backup-action-heading">
           <span>🚗</span>
           <div>
-            <strong>Araç ayarları</strong>
-            <small>Şarj yüzdesinden tahmini eklenen enerjiyi hesaplamak için kullanılır.</small>
+            <strong>Araçlarım</strong>
+            <small>Her aracın şarj kayıtları ve istatistikleri birbirinden ayrı tutulur.</small>
           </div>
         </div>
 
-        <div className="vehicle-settings-grid">
-          <label className="form-field compact-field">
-            <span>Araç modeli</span>
-            <input
-              type="text"
-              value={vehicleModel}
-              onChange={(event) => {
-                setVehicleModel(event.target.value);
-                setVehicleMessage("");
-              }}
-              placeholder="Tesla Model Y"
-            />
-          </label>
+        <div className="vehicle-profile-list">
+          {vehicles.map((vehicle) => (
+            <button
+              type="button"
+              key={vehicle.id}
+              className={`vehicle-profile-button ${vehicle.id === activeVehicleId ? "active" : ""}`}
+              onClick={() => onActiveVehicleChange(vehicle.id)}
+            >
+              <span className="vehicle-profile-icon">⚡</span>
+              <span>
+                <strong>{vehicle.name}</strong>
+                <small>{vehicle.model || "Model belirtilmedi"} · {vehicle.batteryCapacityKwh ?? "—"} kWh</small>
+              </span>
+              <i>{vehicle.id === activeVehicleId ? "✓" : ""}</i>
+            </button>
+          ))}
+        </div>
 
+        <button className="backup-secondary-button add-vehicle-button" type="button" onClick={startAddingVehicle}>
+          ＋ Yeni araç oluştur
+        </button>
+
+        <div className="vehicle-editor-heading">
+          <strong>{isAddingVehicle ? "Yeni araç" : "Seçili aracı düzenle"}</strong>
+          {isAddingVehicle && <button type="button" onClick={() => setIsAddingVehicle(false)}>İptal</button>}
+        </div>
+
+        <div className="vehicle-settings-grid multi-vehicle-grid">
+          <label className="form-field compact-field">
+            <span>Araç adı</span>
+            <input value={vehicleName} onChange={(event) => { setVehicleName(event.target.value); setVehicleMessage(""); }} placeholder="Benim Model Y" />
+          </label>
+          <label className="form-field compact-field">
+            <span>Model</span>
+            <input value={vehicleModel} onChange={(event) => { setVehicleModel(event.target.value); setVehicleMessage(""); }} placeholder="Tesla Model Y" />
+          </label>
           <label className="form-field compact-field">
             <span>Batarya kapasitesi</span>
             <div className="input-with-unit">
-              <input
-                type="number"
-                min="1"
-                max="250"
-                step="0.1"
-                inputMode="decimal"
-                value={batteryCapacity}
-                onChange={(event) => {
-                  setBatteryCapacity(event.target.value);
-                  setVehicleMessage("");
-                }}
-                placeholder="75"
-              />
+              <input type="number" min="1" max="250" step="0.1" inputMode="decimal" value={batteryCapacity} onChange={(event) => { setBatteryCapacity(event.target.value); setVehicleMessage(""); }} placeholder="75" />
               <strong>kWh</strong>
             </div>
           </label>
         </div>
 
         <button className="backup-primary-button vehicle-settings-save" type="button" onClick={saveVehicleProfile}>
-          Araç ayarlarını kaydet
+          {isAddingVehicle ? "Aracı oluştur" : "Araç bilgilerini kaydet"}
         </button>
-        {vehicleMessage && (
-          <div className={`vehicle-settings-message ${vehicleMessage.includes("kaydedildi") ? "success" : "error"}`}>
-            {vehicleMessage}
-          </div>
+        {!isAddingVehicle && vehicles.length > 1 && activeVehicle && (
+          <button className="vehicle-delete-button" type="button" onClick={() => {
+            if (window.confirm(`${activeVehicle.name} ve bu araca ait tüm şarj kayıtları silinsin mi?`)) {
+              onDeleteVehicle(activeVehicle.id);
+            }
+          }}>
+            Bu aracı sil
+          </button>
         )}
+        {vehicleMessage && <div className={`vehicle-settings-message ${vehicleMessage.includes("kaydedildi") || vehicleMessage.includes("oluşturuldu") ? "success" : "error"}`}>{vehicleMessage}</div>}
+      </section>
+
+      <section className="appearance-settings-card">
+        <div className="backup-action-heading"><span>◐</span><div><strong>Görünüm</strong><small>Uygulamanın temasını ve kart görünümünü kişiselleştir.</small></div></div>
+        <div className="appearance-setting-block">
+          <span className="appearance-label">Tema modu</span>
+          <div className="appearance-segmented-control">
+            {([ ["system", "Otomatik"], ["light", "Açık"], ["dark", "Koyu"] ] as Array<[ThemeMode, string]>).map(([value, label]) => (
+              <button key={value} type="button" className={themeSettings.mode === value ? "active" : ""} onClick={() => onThemeSettingsChange({ ...themeSettings, mode: value })}>{label}</button>
+            ))}
+          </div>
+          <small className="appearance-helper">Otomatik seçeneği telefonun açık/koyu görünümünü takip eder.</small>
+        </div>
+        <div className="appearance-setting-block">
+          <span className="appearance-label">Renk teması</span>
+          <div className="theme-swatch-grid">
+            {colorThemes.map((theme) => (
+              <button key={theme.id} type="button" className={`theme-swatch ${themeSettings.colorTheme === theme.id ? "selected" : ""}`} onClick={() => onThemeSettingsChange({ ...themeSettings, colorTheme: theme.id })}>
+                <span className="theme-color-preview">{theme.colors.map((color) => <i key={color} style={{ background: color }} />)}</span>
+                <strong>{theme.name}</strong><span className="theme-check">✓</span>
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="appearance-setting-block">
+          <span className="appearance-label">Kart stili</span>
+          <div className="appearance-segmented-control card-style-control">
+            {([ ["modern", "Modern"], ["glass", "Cam"], ["minimal", "Minimal"] ] as Array<[CardStyle, string]>).map(([value, label]) => (
+              <button key={value} type="button" className={themeSettings.cardStyle === value ? "active" : ""} onClick={() => onThemeSettingsChange({ ...themeSettings, cardStyle: value })}>{label}</button>
+            ))}
+          </div>
+        </div>
       </section>
 
       <section className="backup-status-card">
         <span className="backup-status-icon">◆</span>
-        <div>
-          <small>TELEFONDAKİ KAYITLAR</small>
-          <strong>{sessions.length} şarj kaydı</strong>
-          <span>Son yedek: {formatBackupDate(lastBackupDate)}</span>
-        </div>
+        <div><small>TÜM ARAÇLARDAKİ VERİLER</small><strong>{vehicles.length} araç · {totalSessions} şarj kaydı</strong><span>Son yedek: {formatBackupDate(lastBackupDate)}</span></div>
       </section>
 
       <section className="backup-action-card">
-        <div className="backup-action-heading">
-          <span>⇧</span>
-          <div>
-            <strong>Yedeği dışa aktar</strong>
-            <small>Dosyalar veya iCloud Drive'a kaydedebileceğin bir JSON oluşturur.</small>
-          </div>
-        </div>
-        <button className="backup-primary-button" type="button" onClick={exportBackup}>
-          JSON yedeği oluştur
-        </button>
+        <div className="backup-action-heading"><span>⇧</span><div><strong>Tüm araçları dışa aktar</strong><small>Araç profilleri ve her araca ait kayıtlar tek JSON dosyasına kaydedilir.</small></div></div>
+        <button className="backup-primary-button" type="button" onClick={exportBackup}>Tüm verilerin JSON yedeğini oluştur</button>
       </section>
 
       <section className="backup-action-card">
-        <div className="backup-action-heading">
-          <span>⇩</span>
-          <div>
-            <strong>Yedeği içe aktar</strong>
-            <small>Daha önce ChargeFlow ile oluşturduğun JSON dosyasını seç.</small>
-          </div>
-        </div>
-        <input
-          ref={fileInputRef}
-          className="backup-file-input"
-          type="file"
-          accept="application/json,.json"
-          onChange={handleFileSelected}
-        />
-        <button
-          className="backup-secondary-button"
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-        >
-          JSON dosyası seç
-        </button>
+        <div className="backup-action-heading"><span>⇩</span><div><strong>Yedeği içe aktar</strong><small>Yedekteki bütün araçlar ve araçlara ait kayıtlar birlikte geri gelir.</small></div></div>
+        <input ref={fileInputRef} className="backup-file-input" type="file" accept="application/json,.json" onChange={handleFileSelected} />
+        <button className="backup-secondary-button" type="button" onClick={() => fileInputRef.current?.click()}>JSON dosyası seç</button>
       </section>
 
-      {pendingSessions && (
+      {pendingBackup && (
         <section className="backup-import-panel">
-          <div className="backup-import-summary">
-            <small>SEÇİLEN YEDEK</small>
-            <strong>{pendingFileName}</strong>
-            <span>{pendingSessions.length} şarj kaydı bulundu</span>
-          </div>
-
-          <label className={`backup-mode-option ${importMode === "merge" ? "selected" : ""}`}>
-            <input
-              type="radio"
-              name="importMode"
-              checked={importMode === "merge"}
-              onChange={() => setImportMode("merge")}
-            />
-            <span>
-              <strong>Mevcut kayıtlarla birleştir</strong>
-              <small>Aynı kayıtlar çoğaltılmaz. Yalnızca eksik kayıtlar eklenir.</small>
-            </span>
-          </label>
-
-          <label className={`backup-mode-option danger ${importMode === "replace" ? "selected" : ""}`}>
-            <input
-              type="radio"
-              name="importMode"
-              checked={importMode === "replace"}
-              onChange={() => setImportMode("replace")}
-            />
-            <span>
-              <strong>Mevcut kayıtların yerine kullan</strong>
-              <small>Telefondaki tüm şarj kayıtları seçilen yedekle değiştirilir.</small>
-            </span>
-          </label>
-
-          <div className="backup-import-actions">
-            <button type="button" onClick={() => setPendingSessions(null)}>İptal</button>
-            <button className="backup-primary-button" type="button" onClick={completeImport}>
-              İçe aktar
-            </button>
-          </div>
+          <div className="backup-import-summary"><small>SEÇİLEN YEDEK</small><strong>{pendingFileName}</strong><span>{pendingBackup.vehicles.length} araç · {pendingBackup.vehicles.reduce((sum, entry) => sum + entry.sessions.length, 0)} şarj kaydı</span></div>
+          <label className={`backup-mode-option ${importMode === "merge" ? "selected" : ""}`}><input type="radio" name="importMode" checked={importMode === "merge"} onChange={() => setImportMode("merge")} /><span><strong>Mevcut araçlarla birleştir</strong><small>Aynı araç ve kayıtlar çoğaltılmaz; eksik bilgiler eklenir.</small></span></label>
+          <label className={`backup-mode-option danger ${importMode === "replace" ? "selected" : ""}`}><input type="radio" name="importMode" checked={importMode === "replace"} onChange={() => setImportMode("replace")} /><span><strong>Tüm mevcut verilerin yerine kullan</strong><small>Telefondaki bütün araçlar ve kayıtlar seçilen yedekle değiştirilir.</small></span></label>
+          <div className="backup-import-actions"><button type="button" onClick={() => setPendingBackup(null)}>İptal</button><button className="backup-primary-button" type="button" onClick={completeImport}>İçe aktar</button></div>
         </section>
       )}
 
-      {message && (
-        <div className={`backup-message ${isError ? "error" : "success"}`} role="status">
-          {message}
-        </div>
-      )}
-
-      <p className="backup-footnote">
-        Güncelleme yapmak normalde telefonundaki kayıtları silmez. Yine de önemli değişikliklerden önce yedek almak en güvenli yöntemdir.
-      </p>
+      {message && <div className={`backup-message ${isError ? "error" : "success"}`} role="status">{message}</div>}
+      <p className="backup-footnote">Araç değiştirildiğinde ana sayfa ve istatistikler yalnızca seçili araca ait verileri gösterir.</p>
     </section>
   );
 }

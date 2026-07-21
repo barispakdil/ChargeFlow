@@ -1,10 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { sampleChargingSessions } from "../data/sampleData";
 import type { ChargingSession } from "../types/ChargingSession";
-import {
-  loadChargingSessions,
-  saveChargingSessions,
-} from "../utils/storage";
+import { loadVehicleSessions, saveVehicleSessions } from "../utils/garage";
 import { mergeSessionCollections } from "../utils/backup";
 import {
   calculateStatisticsSummary,
@@ -12,63 +8,75 @@ import {
   sortChargingSessions,
 } from "../utils/statistics";
 
-export function useChargingSessions() {
-  const [chargingSessions, setChargingSessions] = useState<
-    ChargingSession[]
-  >(() => loadChargingSessions(sampleChargingSessions));
+export function useChargingSessions(vehicleId: string) {
+  const [sessionState, setSessionState] = useState(() => ({
+    vehicleId,
+    sessions: loadVehicleSessions(vehicleId),
+  }));
 
   useEffect(() => {
-    saveChargingSessions(chargingSessions);
-  }, [chargingSessions]);
+    if (sessionState.vehicleId !== vehicleId) {
+      setSessionState({ vehicleId, sessions: loadVehicleSessions(vehicleId) });
+    }
+  }, [vehicleId, sessionState.vehicleId]);
+
+  useEffect(() => {
+    if (sessionState.vehicleId === vehicleId) {
+      saveVehicleSessions(vehicleId, sessionState.sessions);
+    }
+  }, [sessionState, vehicleId]);
+
+  const chargingSessions =
+    sessionState.vehicleId === vehicleId ? sessionState.sessions : [];
 
   const sortedSessions = useMemo(
     () => sortChargingSessions(chargingSessions),
     [chargingSessions],
   );
-
   const groupedMonths = useMemo(
     () => groupSessionsByMonth(sortedSessions),
     [sortedSessions],
   );
-
   const statisticsSummary = useMemo(
     () => calculateStatisticsSummary(chargingSessions),
     [chargingSessions],
   );
 
+  const updateCurrent = (
+    updater: (sessions: ChargingSession[]) => ChargingSession[],
+  ) => {
+    setSessionState((current) => {
+      const base = current.vehicleId === vehicleId
+        ? current.sessions
+        : loadVehicleSessions(vehicleId);
+      return { vehicleId, sessions: updater(base) };
+    });
+  };
+
   function addChargingSession(session: ChargingSession) {
-    setChargingSessions((currentSessions) => [
-      session,
-      ...currentSessions,
-    ]);
+    updateCurrent((sessions) => [session, ...sessions]);
   }
 
   function updateChargingSession(updatedSession: ChargingSession) {
-    setChargingSessions((currentSessions) =>
-      currentSessions.map((session) =>
-        session.id === updatedSession.id
-          ? updatedSession
-          : session,
+    updateCurrent((sessions) =>
+      sessions.map((session) =>
+        session.id === updatedSession.id ? updatedSession : session,
       ),
     );
   }
 
   function deleteChargingSession(sessionId: number) {
-    setChargingSessions((currentSessions) =>
-      currentSessions.filter(
-        (session) => session.id !== sessionId,
-      ),
-    );
+    updateCurrent((sessions) => sessions.filter((session) => session.id !== sessionId));
   }
 
   function importChargingSessions(
     importedSessions: ChargingSession[],
     mode: "merge" | "replace",
   ) {
-    setChargingSessions((currentSessions) =>
+    updateCurrent((sessions) =>
       mode === "replace"
         ? importedSessions
-        : mergeSessionCollections(currentSessions, importedSessions),
+        : mergeSessionCollections(sessions, importedSessions),
     );
   }
 

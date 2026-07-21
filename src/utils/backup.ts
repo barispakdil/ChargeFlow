@@ -1,15 +1,22 @@
 import type { ChargingSession } from "../types/ChargingSession";
+import type { VehicleProfile } from "../types/VehicleProfile";
 
 export const BACKUP_FORMAT = "chargeflow-backup";
-export const BACKUP_VERSION = 1;
+export const BACKUP_VERSION = 2;
 export const LAST_BACKUP_DATE_KEY = "chargeflow-last-backup-date";
+
+export interface VehicleBackupEntry {
+  vehicle: VehicleProfile;
+  sessions: ChargingSession[];
+}
 
 export interface ChargeFlowBackup {
   app: "ChargeFlow";
   format: typeof BACKUP_FORMAT;
   version: number;
   createdAt: string;
-  sessions: ChargingSession[];
+  activeVehicleId: string;
+  vehicles: VehicleBackupEntry[];
 }
 
 function isFiniteNumber(value: unknown): value is number {
@@ -19,7 +26,6 @@ function isFiniteNumber(value: unknown): value is number {
 function isChargingSession(value: unknown): value is ChargingSession {
   if (!value || typeof value !== "object") return false;
   const session = value as Partial<ChargingSession>;
-
   return (
     isFiniteNumber(session.id) &&
     typeof session.date === "string" &&
@@ -36,19 +42,39 @@ function isChargingSession(value: unknown): value is ChargingSession {
   );
 }
 
-export function createBackup(sessions: ChargingSession[]): ChargeFlowBackup {
+function isVehicleProfile(value: unknown): value is VehicleProfile {
+  if (!value || typeof value !== "object") return false;
+  const vehicle = value as Partial<VehicleProfile>;
+  return (
+    typeof vehicle.id === "string" &&
+    vehicle.id.length > 0 &&
+    typeof vehicle.name === "string" &&
+    typeof vehicle.model === "string" &&
+    (vehicle.batteryCapacityKwh === null || isFiniteNumber(vehicle.batteryCapacityKwh)) &&
+    typeof vehicle.createdAt === "string"
+  );
+}
+
+export function createBackup(
+  vehicles: VehicleProfile[],
+  activeVehicleId: string,
+  getSessions: (vehicleId: string) => ChargingSession[],
+): ChargeFlowBackup {
   return {
     app: "ChargeFlow",
     format: BACKUP_FORMAT,
     version: BACKUP_VERSION,
     createdAt: new Date().toISOString(),
-    sessions,
+    activeVehicleId,
+    vehicles: vehicles.map((vehicle) => ({
+      vehicle,
+      sessions: getSessions(vehicle.id),
+    })),
   };
 }
 
 export function parseBackup(rawText: string): ChargeFlowBackup {
   let parsed: unknown;
-
   try {
     parsed = JSON.parse(rawText);
   } catch {
@@ -59,8 +85,7 @@ export function parseBackup(rawText: string): ChargeFlowBackup {
     throw new Error("Yedek dosyasının yapısı geçersiz.");
   }
 
-  const backup = parsed as Partial<ChargeFlowBackup>;
-
+  const backup = parsed as Record<string, unknown>;
   if (backup.app !== "ChargeFlow" || backup.format !== BACKUP_FORMAT) {
     throw new Error("Bu dosya ChargeFlow tarafından oluşturulmuş bir yedek değil.");
   }
@@ -69,11 +94,63 @@ export function parseBackup(rawText: string): ChargeFlowBackup {
     throw new Error("Bu yedek daha yeni bir ChargeFlow sürümüyle oluşturulmuş.");
   }
 
-  if (!Array.isArray(backup.sessions) || !backup.sessions.every(isChargingSession)) {
-    throw new Error("Yedekteki şarj kayıtlarından biri veya birkaçı geçersiz.");
+  // v1 yedeklerini tek araçlı v2 biçimine dönüştür.
+  if (backup.version === 1) {
+    const sessions = backup.sessions;
+    if (!Array.isArray(sessions) || !sessions.every(isChargingSession)) {
+      throw new Error("Yedekteki şarj kayıtlarından biri veya birkaçı geçersiz.");
+    }
+    const id = `imported-${Date.now()}`;
+    return {
+      app: "ChargeFlow",
+      format: BACKUP_FORMAT,
+      version: 2,
+      createdAt: typeof backup.createdAt === "string" ? backup.createdAt : new Date().toISOString(),
+      activeVehicleId: id,
+      vehicles: [{
+        vehicle: {
+          id,
+          name: "İçe aktarılan araç",
+          model: "",
+          batteryCapacityKwh: null,
+          createdAt: new Date().toISOString(),
+        },
+        sessions,
+      }],
+    };
   }
 
-  return backup as ChargeFlowBackup;
+  if (!Array.isArray(backup.vehicles)) {
+    throw new Error("Yedekte araç bilgileri bulunamadı.");
+  }
+
+  const entries = backup.vehicles as unknown[];
+  if (!entries.every((entry) => {
+    if (!entry || typeof entry !== "object") return false;
+    const value = entry as { vehicle?: unknown; sessions?: unknown };
+    return isVehicleProfile(value.vehicle) &&
+      Array.isArray(value.sessions) && value.sessions.every(isChargingSession);
+  })) {
+    throw new Error("Yedekteki araç veya şarj kayıtlarından biri geçersiz.");
+  }
+
+  const vehicles = entries as VehicleBackupEntry[];
+  const activeVehicleId =
+    typeof backup.activeVehicleId === "string" &&
+    vehicles.some((entry) => entry.vehicle.id === backup.activeVehicleId)
+      ? backup.activeVehicleId
+      : vehicles[0]?.vehicle.id;
+
+  if (!activeVehicleId) throw new Error("Yedekte kullanılabilir araç bulunamadı.");
+
+  return {
+    app: "ChargeFlow",
+    format: BACKUP_FORMAT,
+    version: 2,
+    createdAt: typeof backup.createdAt === "string" ? backup.createdAt : new Date().toISOString(),
+    activeVehicleId,
+    vehicles,
+  };
 }
 
 export function buildBackupFileName(date = new Date()) {
@@ -81,30 +158,14 @@ export function buildBackupFileName(date = new Date()) {
   return `ChargeFlow_Backup_${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}_${pad(date.getHours())}-${pad(date.getMinutes())}.json`;
 }
 
-export function sessionIdentity(session: ChargingSession) {
-  return [
-    session.date,
-    session.time,
-    session.odometer,
-    session.energy,
-    session.startBattery,
-    session.endBattery,
-  ].join("|");
-}
-
 export function mergeSessionCollections(
   currentSessions: ChargingSession[],
   importedSessions: ChargingSession[],
 ) {
-  const merged = new Map<string, ChargingSession>();
-
-  currentSessions.forEach((session) => {
-    merged.set(sessionIdentity(session), session);
+  const map = new Map<string, ChargingSession>();
+  [...currentSessions, ...importedSessions].forEach((session) => {
+    const key = `${session.date}-${session.time}-${session.odometer}`;
+    map.set(key, session);
   });
-
-  importedSessions.forEach((session) => {
-    merged.set(sessionIdentity(session), session);
-  });
-
-  return Array.from(merged.values());
+  return Array.from(map.values());
 }

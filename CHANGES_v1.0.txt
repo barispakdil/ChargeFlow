@@ -1,0 +1,12 @@
+ChargeFlow v1.0 – Çoklu Araç Sistemi
+
+- Ayarlar > Araçlarım bölümünden birden fazla araç oluşturulabilir.
+- Araçlar arasında seçim yapıldığında ana sayfa, istatistikler ve yeni şarj ekranı seçili araca geçer.
+- Her aracın şarj kayıtları, kilometre geçmişi, istatistikleri, modeli ve batarya kapasitesi ayrı tutulur.
+- Mevcut tek araçlı kurulum ilk açılışta otomatik olarak yeni çoklu araç yapısına taşınır.
+- Araç adı, model ve batarya kapasitesi düzenlenebilir.
+- Birden fazla araç varsa seçili araç ve ona ait kayıtlar silinebilir.
+- JSON yedeği artık bütün araçları ve her aracın kayıtlarını tek dosyada saklar.
+- Yedek geri yükleme bütün araç profillerini ve şarj kayıtlarını birlikte geri getirir.
+- Birleştir ve tamamen değiştir geri yükleme seçenekleri desteklenir.
+- Eski v1 ChargeFlow JSON yedekleri de içe aktarılabilir.
