@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import type { ChargingSession } from "../types/ChargingSession";
 import type { VehicleSettings } from "../types/VehicleSettings";
+import type { CardStyle, ColorTheme, ThemeMode, ThemeSettings } from "../types/ThemeSettings";
 import {
   buildBackupFileName,
   createBackup,
@@ -11,11 +12,24 @@ import {
 
 type ImportMode = "merge" | "replace";
 
+const colorThemes: Array<{ id: ColorTheme; name: string; colors: string[] }> = [
+  { id: "midnight", name: "Midnight", colors: ["#35d9ff", "#46f2c2"] },
+  { id: "ocean", name: "Ocean", colors: ["#4f8cff", "#67d8ff"] },
+  { id: "emerald", name: "Emerald", colors: ["#21d69b", "#8af0b9"] },
+  { id: "sunset", name: "Sunset", colors: ["#ff9f43", "#ffd166"] },
+  { id: "crimson", name: "Crimson", colors: ["#ff5570", "#ff8b70"] },
+  { id: "purple", name: "Purple", colors: ["#a879ff", "#ff78d1"] },
+  { id: "graphite", name: "Graphite", colors: ["#aeb8c4", "#e0e5eb"] },
+];
+
+
 interface BackupViewProps {
   sessions: ChargingSession[];
   onImport: (sessions: ChargingSession[], mode: ImportMode) => void;
   vehicleSettings: VehicleSettings;
   onVehicleSettingsChange: (settings: VehicleSettings) => void;
+  themeSettings: ThemeSettings;
+  onThemeSettingsChange: (settings: ThemeSettings) => void;
 }
 
 function formatBackupDate(value: string | null) {
@@ -35,6 +49,8 @@ function BackupView({
   onImport,
   vehicleSettings,
   onVehicleSettingsChange,
+  themeSettings,
+  onThemeSettingsChange,
 }: BackupViewProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [lastBackupDate, setLastBackupDate] = useState(() =>
@@ -152,6 +168,77 @@ function BackupView({
         <h1>Yedekleme</h1>
         <p>Şarj kayıtlarını JSON dosyası olarak sakla veya eski bir yedeği geri yükle.</p>
       </header>
+
+      <section className="appearance-settings-card">
+        <div className="backup-action-heading">
+          <span>◐</span>
+          <div>
+            <strong>Görünüm</strong>
+            <small>Uygulamanın temasını, vurgu rengini ve kart görünümünü kişiselleştir.</small>
+          </div>
+        </div>
+
+        <div className="appearance-setting-block">
+          <span className="appearance-label">Tema modu</span>
+          <div className="appearance-segmented-control">
+            {([
+              ["system", "Otomatik"],
+              ["light", "Açık"],
+              ["dark", "Koyu"],
+            ] as Array<[ThemeMode, string]>).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                className={themeSettings.mode === value ? "active" : ""}
+                onClick={() => onThemeSettingsChange({ ...themeSettings, mode: value })}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <small className="appearance-helper">Otomatik seçeneği telefonun açık/koyu görünümünü anında takip eder.</small>
+        </div>
+
+        <div className="appearance-setting-block">
+          <span className="appearance-label">Renk teması</span>
+          <div className="theme-swatch-grid">
+            {colorThemes.map((theme) => (
+              <button
+                key={theme.id}
+                type="button"
+                className={`theme-swatch ${themeSettings.colorTheme === theme.id ? "selected" : ""}`}
+                onClick={() => onThemeSettingsChange({ ...themeSettings, colorTheme: theme.id })}
+              >
+                <span className="theme-color-preview">
+                  {theme.colors.map((color) => <i key={color} style={{ background: color }} />)}
+                </span>
+                <strong>{theme.name}</strong>
+                <span className="theme-check">✓</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="appearance-setting-block">
+          <span className="appearance-label">Kart stili</span>
+          <div className="appearance-segmented-control card-style-control">
+            {([
+              ["modern", "Modern"],
+              ["glass", "Cam"],
+              ["minimal", "Minimal"],
+            ] as Array<[CardStyle, string]>).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                className={themeSettings.cardStyle === value ? "active" : ""}
+                onClick={() => onThemeSettingsChange({ ...themeSettings, cardStyle: value })}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
 
       <section className="vehicle-settings-card">
         <div className="backup-action-heading">

@@ -11,7 +11,9 @@ import { useChargingSessions } from "../hooks/useChargingSessions";
 import type { ChargingSession } from "../types/ChargingSession";
 import type { ActiveTab } from "../types/navigation";
 import type { VehicleSettings } from "../types/VehicleSettings";
+import type { ThemeSettings } from "../types/ThemeSettings";
 import { loadVehicleSettings, saveVehicleSettings } from "../utils/vehicleSettings";
+import { applyThemeSettings, loadThemeSettings, saveThemeSettings } from "../utils/themeSettings";
 
 function HomePage() {
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
@@ -21,10 +23,24 @@ function HomePage() {
   const [vehicleSettings, setVehicleSettings] = useState<VehicleSettings>(() =>
     loadVehicleSettings(),
   );
+  const [themeSettings, setThemeSettings] = useState<ThemeSettings>(() =>
+    loadThemeSettings(),
+  );
 
   useEffect(() => {
     saveVehicleSettings(vehicleSettings);
   }, [vehicleSettings]);
+
+  useEffect(() => {
+    applyThemeSettings(themeSettings);
+    saveThemeSettings(themeSettings);
+
+    if (themeSettings.mode !== "system") return;
+    const media = window.matchMedia("(prefers-color-scheme: light)");
+    const syncSystemTheme = () => applyThemeSettings(themeSettings);
+    media.addEventListener("change", syncSystemTheme);
+    return () => media.removeEventListener("change", syncSystemTheme);
+  }, [themeSettings]);
 
   const {
     sortedSessions,
@@ -99,6 +115,8 @@ function HomePage() {
             onImport={importChargingSessions}
             vehicleSettings={vehicleSettings}
             onVehicleSettingsChange={setVehicleSettings}
+            themeSettings={themeSettings}
+            onThemeSettingsChange={setThemeSettings}
           />
         )}
       </section>

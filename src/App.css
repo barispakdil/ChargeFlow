@@ -4779,3 +4779,300 @@ body {
     font-size: 8px;
   }
 }
+
+/* =========================================================
+   v0.9 — PERSONALIZED APPEARANCE SYSTEM
+   ========================================================= */
+:root {
+  --cf-accent: #35d9ff;
+  --cf-accent-2: #46f2c2;
+  --cf-accent-rgb: 53, 217, 255;
+  --cf-accent-2-rgb: 70, 242, 194;
+  --cf-bg: #070b12;
+  --cf-bg-soft: #0a111b;
+  --cf-surface: rgba(18, 28, 41, 0.96);
+  --cf-surface-2: rgba(9, 16, 26, 0.97);
+  --cf-surface-flat: #111b29;
+  --cf-border: rgba(124, 170, 202, 0.14);
+  --cf-text: #f7fbff;
+  --cf-muted: #8295aa;
+  --cf-muted-2: #71849a;
+  --cf-on-accent: #041018;
+  --cf-shadow: rgba(0, 0, 0, 0.28);
+  --cf-card-radius: 24px;
+  --cf-card-blur: 18px;
+  --cf-card-shadow: 0 18px 42px var(--cf-shadow);
+}
+
+:root[data-color-theme="ocean"] {
+  --cf-accent: #4f8cff;
+  --cf-accent-2: #67d8ff;
+  --cf-accent-rgb: 79, 140, 255;
+  --cf-accent-2-rgb: 103, 216, 255;
+}
+:root[data-color-theme="emerald"] {
+  --cf-accent: #21d69b;
+  --cf-accent-2: #8af0b9;
+  --cf-accent-rgb: 33, 214, 155;
+  --cf-accent-2-rgb: 138, 240, 185;
+}
+:root[data-color-theme="sunset"] {
+  --cf-accent: #ff9f43;
+  --cf-accent-2: #ffd166;
+  --cf-accent-rgb: 255, 159, 67;
+  --cf-accent-2-rgb: 255, 209, 102;
+  --cf-on-accent: #211205;
+}
+:root[data-color-theme="crimson"] {
+  --cf-accent: #ff5570;
+  --cf-accent-2: #ff8b70;
+  --cf-accent-rgb: 255, 85, 112;
+  --cf-accent-2-rgb: 255, 139, 112;
+  --cf-on-accent: #21060b;
+}
+:root[data-color-theme="purple"] {
+  --cf-accent: #a879ff;
+  --cf-accent-2: #ff78d1;
+  --cf-accent-rgb: 168, 121, 255;
+  --cf-accent-2-rgb: 255, 120, 209;
+  --cf-on-accent: #140a25;
+}
+:root[data-color-theme="graphite"] {
+  --cf-accent: #aeb8c4;
+  --cf-accent-2: #e0e5eb;
+  --cf-accent-rgb: 174, 184, 196;
+  --cf-accent-2-rgb: 224, 229, 235;
+  --cf-on-accent: #11161c;
+}
+
+:root[data-theme-mode="light"] {
+  --cf-bg: #edf3f8;
+  --cf-bg-soft: #e7eef5;
+  --cf-surface: rgba(255, 255, 255, 0.94);
+  --cf-surface-2: rgba(244, 248, 252, 0.96);
+  --cf-surface-flat: #ffffff;
+  --cf-border: rgba(60, 86, 112, 0.14);
+  --cf-text: #122033;
+  --cf-muted: #61758a;
+  --cf-muted-2: #6f8194;
+  --cf-shadow: rgba(42, 66, 90, 0.14);
+}
+
+html,
+body,
+#root {
+  background: var(--cf-bg) !important;
+  color: var(--cf-text);
+}
+
+body {
+  background:
+    radial-gradient(circle at 15% 8%, rgba(var(--cf-accent-rgb), 0.13), transparent 31%),
+    radial-gradient(circle at 92% 14%, rgba(var(--cf-accent-2-rgb), 0.09), transparent 27%),
+    var(--cf-bg) !important;
+  transition: background 220ms ease, color 220ms ease;
+}
+
+.brand,
+.chargeflow-wordmark,
+.backup-page-header h1,
+.statistics-page h1,
+.add-charge-heading h2,
+.backup-action-heading strong,
+.backup-status-card strong,
+.backup-import-summary strong,
+.month-sticky-panel strong,
+.session-card strong,
+.statistic-card strong {
+  color: var(--cf-text) !important;
+}
+
+.brand span,
+.chargeflow-wordmark span,
+.bottom-navigation-item.active,
+.backup-action-heading > span,
+.statistics-range-selector button.active,
+.month-summary-accent,
+.month-sticky-panel .month-kwh,
+a {
+  color: var(--cf-accent) !important;
+}
+
+.icon-add-button,
+.add-charge-save-button,
+.backup-primary-button {
+  color: var(--cf-on-accent) !important;
+  background: linear-gradient(135deg, var(--cf-accent), var(--cf-accent-2)) !important;
+  box-shadow: 0 12px 28px rgba(var(--cf-accent-rgb), 0.24) !important;
+}
+
+.bottom-navigation,
+.backup-status-card,
+.backup-action-card,
+.backup-import-panel,
+.vehicle-settings-card,
+.appearance-settings-card,
+.session-card,
+.month-sticky-panel,
+.statistic-card,
+.statistics-chart-card,
+.add-charge-sheet-content,
+.form-card,
+.detail-card {
+  border-color: var(--cf-border) !important;
+  border-radius: var(--cf-card-radius) !important;
+  background:
+    radial-gradient(circle at 92% 0%, rgba(var(--cf-accent-rgb), 0.08), transparent 40%),
+    linear-gradient(145deg, var(--cf-surface), var(--cf-surface-2)) !important;
+  box-shadow: var(--cf-card-shadow) !important;
+  backdrop-filter: blur(var(--cf-card-blur));
+}
+
+.bottom-navigation-item,
+.backup-page-header > p:last-child,
+.backup-action-heading small,
+.backup-status-card span:last-child,
+.backup-import-summary span,
+.backup-footnote,
+.appearance-helper,
+.appearance-label {
+  color: var(--cf-muted) !important;
+}
+
+.bottom-navigation-item.active,
+.statistics-range-selector button.active,
+.appearance-segmented-control button.active {
+  border-color: rgba(var(--cf-accent-rgb), 0.25) !important;
+  background: rgba(var(--cf-accent-rgb), 0.10) !important;
+}
+
+.backup-secondary-button,
+.theme-swatch.selected {
+  border-color: rgba(var(--cf-accent-rgb), 0.35) !important;
+  color: var(--cf-accent) !important;
+  background: rgba(var(--cf-accent-rgb), 0.08) !important;
+}
+
+:root[data-card-style="glass"] {
+  --cf-surface: rgba(24, 36, 51, 0.66);
+  --cf-surface-2: rgba(10, 18, 29, 0.62);
+  --cf-card-blur: 28px;
+  --cf-card-shadow: 0 22px 52px rgba(0, 0, 0, 0.22);
+}
+:root[data-theme-mode="light"][data-card-style="glass"] {
+  --cf-surface: rgba(255, 255, 255, 0.64);
+  --cf-surface-2: rgba(242, 248, 253, 0.58);
+}
+:root[data-card-style="minimal"] {
+  --cf-card-radius: 17px;
+  --cf-card-blur: 0px;
+  --cf-card-shadow: 0 1px 0 rgba(255, 255, 255, 0.02);
+}
+:root[data-card-style="minimal"] .bottom-navigation,
+:root[data-card-style="minimal"] .backup-status-card,
+:root[data-card-style="minimal"] .backup-action-card,
+:root[data-card-style="minimal"] .backup-import-panel,
+:root[data-card-style="minimal"] .vehicle-settings-card,
+:root[data-card-style="minimal"] .appearance-settings-card,
+:root[data-card-style="minimal"] .session-card,
+:root[data-card-style="minimal"] .month-sticky-panel,
+:root[data-card-style="minimal"] .statistic-card,
+:root[data-card-style="minimal"] .statistics-chart-card {
+  background: var(--cf-surface-flat) !important;
+}
+
+.appearance-settings-card {
+  padding: 19px;
+}
+.appearance-setting-block + .appearance-setting-block {
+  margin-top: 19px;
+  padding-top: 17px;
+  border-top: 1px solid var(--cf-border);
+}
+.appearance-label {
+  display: block;
+  margin-bottom: 9px;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.appearance-helper {
+  display: block;
+  margin-top: 8px;
+  font-size: 9px;
+  line-height: 1.45;
+}
+.appearance-segmented-control {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+  padding: 5px;
+  border: 1px solid var(--cf-border);
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.08);
+}
+.appearance-segmented-control button {
+  min-height: 38px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  color: var(--cf-muted);
+  background: transparent;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.appearance-segmented-control button.active {
+  color: var(--cf-text) !important;
+}
+.theme-swatch-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.theme-swatch {
+  position: relative;
+  display: grid;
+  min-height: 56px;
+  grid-template-columns: 37px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border: 1px solid var(--cf-border);
+  border-radius: 15px;
+  color: var(--cf-text);
+  background: rgba(255, 255, 255, 0.025);
+  text-align: left;
+  cursor: pointer;
+}
+.theme-color-preview {
+  display: flex;
+  width: 37px;
+  height: 37px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.13);
+  border-radius: 12px;
+}
+.theme-color-preview i { flex: 1; }
+.theme-swatch strong { font-size: 10.5px; }
+.theme-check {
+  opacity: 0;
+  color: var(--cf-accent);
+  font-size: 13px;
+  font-weight: 900;
+}
+.theme-swatch.selected .theme-check { opacity: 1; }
+
+:root[data-theme-mode="light"] input,
+:root[data-theme-mode="light"] select,
+:root[data-theme-mode="light"] textarea {
+  color: var(--cf-text) !important;
+  background-color: rgba(255,255,255,.72) !important;
+}
+:root[data-theme-mode="light"] .bottom-navigation {
+  box-shadow: 0 18px 48px rgba(42, 66, 90, 0.18) !important;
+}
+:root[data-theme-mode="light"] .theme-swatch,
+:root[data-theme-mode="light"] .appearance-segmented-control {
+  background: rgba(42, 66, 90, 0.035);
+}
