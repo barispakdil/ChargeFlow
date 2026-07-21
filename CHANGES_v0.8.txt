@@ -1,0 +1,13 @@
+ChargeFlow v0.8
+
+- İstatistik grafiklerine dört görünüm eklendi:
+  * Bütün Şarjlar
+  * Haftalık Ortalamalar
+  * Aylık Ortalamalar
+  * Yıllık Ortalamalar
+- Grafikler istatistik kartlarının üstüne taşındı.
+- Toplam değer kartları grafiklerin altında ayrı bir bölümde gösteriliyor.
+- Ana sayfadaki ay özet kartları daha belirgin bir bölüm başlığı görünümüne kavuştu.
+- Ay kartlarına güçlü vurgu çizgisi, belirgin kenarlık ve farklı arka plan eklendi.
+- Şarj kayıtları arasındaki boşluk 14 px'den 9 px'e düşürüldü.
+- Production build ve PWA üretimi başarıyla test edildi.

@@ -85,7 +85,7 @@ function HomePage() {
         {activeTab === "statistics" && (
           <StatisticsView
             summary={statisticsSummary}
-            months={groupedMonths}
+            sessions={sortedSessions}
           />
         )}
 
