@@ -6,6 +6,7 @@ import type { VehicleSettings } from "../types/VehicleSettings";
 interface AddChargeSheetProps {
   isOpen: boolean;
   lastSession?: ChargingSession;
+  allSessions: ChargingSession[];
   onClose: () => void;
   onSave: (session: ChargingSession) => void;
   vehicleSettings: VehicleSettings;
@@ -47,6 +48,7 @@ function parseNumber(value: string) {
 function AddChargeSheet({
   isOpen,
   lastSession,
+  allSessions,
   onClose,
   onSave,
   vehicleSettings,
@@ -85,17 +87,14 @@ function AddChargeSheet({
     setIsEnergyManual(false);
     setError("");
 
-    setOdometer(lastSession ? String(lastSession.odometer) : "");
-    setPricePerKwh(lastSession ? String(lastSession.pricePerKwh) : "");
-    setLocation(lastSession?.location || "Ev");
-
-    setTemperature(
-      lastSession?.temperature !== undefined
-        ? String(lastSession.temperature)
-        : "",
-    );
-    setTireType(lastSession?.tireType || "");
-    setChargingType(lastSession?.chargingType || "");
+    // Önceki kayıttan gelen değerler input değeri olarak değil,
+    // soluk öneri (placeholder) olarak gösterilir.
+    setOdometer("");
+    setPricePerKwh("");
+    setLocation("");
+    setTemperature("");
+    setTireType("");
+    setChargingType("");
 
     setShowOptional(
       Boolean(
@@ -136,16 +135,25 @@ function AddChargeSheet({
     isEnergyManual,
   ]);
 
+  const suggestedOdometer = lastSession?.odometer;
+  const suggestedPricePerKwh = lastSession?.pricePerKwh;
+  const suggestedLocation = lastSession?.location || "Ev";
+  const suggestedTemperature = lastSession?.temperature;
+  const suggestedTireType = lastSession?.tireType;
+  const suggestedChargingType = lastSession?.chargingType;
+
   useEffect(() => {
     const energyValue = parseNumber(energy);
-    const priceValue = parseNumber(pricePerKwh);
+    const effectivePrice = pricePerKwh.trim() === ""
+      ? (suggestedPricePerKwh ?? 0)
+      : parseNumber(pricePerKwh);
 
-    if (energyValue > 0 && priceValue >= 0) {
-      setCost((energyValue * priceValue).toFixed(2));
+    if (energyValue > 0 && effectivePrice >= 0) {
+      setCost((energyValue * effectivePrice).toFixed(2));
     } else {
       setCost("");
     }
-  }, [energy, pricePerKwh]);
+  }, [energy, pricePerKwh, suggestedPricePerKwh]);
 
   const tireLabel = useMemo(
     () => TIRE_OPTIONS.find((option) => option.value === tireType)?.label,
@@ -174,11 +182,19 @@ function AddChargeSheet({
     const startValue = Number(startBattery);
     const endValue = Number(endBattery);
     const energyValue = parseNumber(energy);
-    const odometerValue = parseNumber(odometer);
-    const priceValue = parseNumber(pricePerKwh);
-    const costValue = parseNumber(cost);
-    const temperatureValue =
-      temperature.trim() === "" ? undefined : parseNumber(temperature);
+    const odometerValue = odometer.trim() === ""
+      ? (suggestedOdometer ?? Number.NaN)
+      : parseNumber(odometer);
+    const priceValue = pricePerKwh.trim() === ""
+      ? (suggestedPricePerKwh ?? 0)
+      : parseNumber(pricePerKwh);
+    const costValue = energyValue * priceValue;
+    const temperatureValue = temperature.trim() === ""
+      ? suggestedTemperature
+      : parseNumber(temperature);
+    const locationValue = location.trim() || suggestedLocation || "Belirtilmedi";
+    const tireTypeValue = tireType || suggestedTireType;
+    const chargingTypeValue = chargingType || suggestedChargingType;
 
     if (!date || !time) {
       setError("Tarih ve saat alanları zorunludur.");
@@ -205,16 +221,38 @@ function AddChargeSheet({
       return;
     }
 
-    if (odometerValue < 0) {
+    if (!Number.isFinite(odometerValue) || odometerValue < 0) {
       setError("Kilometre değeri geçerli değil.");
       return;
     }
 
-    if (lastSession && odometerValue < lastSession.odometer) {
+    // Geriye dönük kayıtlar için kilometreyi yalnızca tarih sırasındaki
+    // komşu kayıtlarla karşılaştır. Böylece eski bir kayıt eklemek mümkündür.
+    const newTimestamp = new Date(`${date}T${time || "00:00"}`).getTime();
+    const chronologicalSessions = [...allSessions]
+      .map((session) => ({
+        session,
+        timestamp: new Date(`${session.date}T${session.time || "00:00"}`).getTime(),
+      }))
+      .filter((entry) => Number.isFinite(entry.timestamp))
+      .sort((a, b) => a.timestamp - b.timestamp);
+
+    const previousSession = [...chronologicalSessions]
+      .reverse()
+      .find((entry) => entry.timestamp <= newTimestamp)?.session;
+    const nextSession = chronologicalSessions
+      .find((entry) => entry.timestamp >= newTimestamp)?.session;
+
+    if (previousSession && odometerValue < previousSession.odometer) {
       setError(
-        `Kilometre, son kayıttaki ${lastSession.odometer.toLocaleString(
-          "tr-TR",
-        )} km değerinden düşük olamaz.`,
+        `${previousSession.date} tarihli önceki kayıtta kilometre ${previousSession.odometer.toLocaleString("tr-TR")} km. Yeni değer bundan düşük olamaz.`,
+      );
+      return;
+    }
+
+    if (nextSession && odometerValue > nextSession.odometer) {
+      setError(
+        `${nextSession.date} tarihli sonraki kayıtta kilometre ${nextSession.odometer.toLocaleString("tr-TR")} km. Yeni değer bundan yüksek olamaz.`,
       );
       return;
     }
@@ -242,10 +280,10 @@ function AddChargeSheet({
       odometer: odometerValue,
       pricePerKwh: priceValue,
       cost: costValue,
-      location: location.trim() || "Belirtilmedi",
+      location: locationValue,
       temperature: temperatureValue,
-      tireType: tireType || undefined,
-      chargingType: chargingType || undefined,
+      tireType: tireTypeValue || undefined,
+      chargingType: chargingTypeValue || undefined,
     });
   }
 
@@ -445,8 +483,9 @@ function AddChargeSheet({
                     inputMode="numeric"
                     value={odometer}
                     onChange={(event) => setOdometer(event.target.value)}
-                    placeholder="24380"
-                    required
+                    placeholder={suggestedOdometer !== undefined
+                      ? suggestedOdometer.toLocaleString("tr-TR", { useGrouping: false })
+                      : "Kilometre gir"}
                   />
                   <strong>km</strong>
                 </div>
@@ -471,8 +510,9 @@ function AddChargeSheet({
                     inputMode="decimal"
                     value={pricePerKwh}
                     onChange={(event) => setPricePerKwh(event.target.value)}
-                    placeholder="8.50"
-                    required
+                    placeholder={suggestedPricePerKwh !== undefined
+                      ? String(suggestedPricePerKwh).replace(".", ",")
+                      : "0,00"}
                   />
                   <strong>TL/kWh</strong>
                 </div>
@@ -502,7 +542,7 @@ function AddChargeSheet({
                 type="text"
                 value={location}
                 onChange={(event) => setLocation(event.target.value)}
-                placeholder="Ev, iş yeri, Supercharger..."
+                placeholder={suggestedLocation || "Ev, iş yeri, Supercharger..."}
               />
             </label>
           </section>
@@ -540,7 +580,9 @@ function AddChargeSheet({
                     inputMode="numeric"
                     value={temperature}
                     onChange={(event) => setTemperature(event.target.value)}
-                    placeholder="24"
+                    placeholder={suggestedTemperature !== undefined
+                      ? String(suggestedTemperature)
+                      : "24"}
                   />
                   <strong>°C</strong>
                 </div>
@@ -559,7 +601,7 @@ function AddChargeSheet({
                     )
                   }
                 >
-                  <span>{tireLabel || "Seçim yap"}</span>
+                  <span>{tireLabel || (suggestedTireType ? TIRE_OPTIONS.find((option) => option.value === suggestedTireType)?.label : "Seçim yap")}</span>
                   <b>⌄</b>
                 </button>
 
@@ -599,7 +641,7 @@ function AddChargeSheet({
                     )
                   }
                 >
-                  <span>{chargingType || "Seçim yap"}</span>
+                  <span>{chargingType || suggestedChargingType || "Seçim yap"}</span>
                   <b>⌄</b>
                 </button>
 

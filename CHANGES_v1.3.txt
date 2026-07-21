@@ -1,0 +1,9 @@
+ChargeFlow v1.3
+
+- Geriye dönük şarj kaydı ekleme desteği eklendi.
+- Kilometre doğrulaması artık en son kayda göre değil, seçilen tarihin önceki ve sonraki kayıtlarına göre yapılıyor.
+- Araç kilometresi alanında son kayıt soluk öneri olarak gösteriliyor; alanı silmeden doğrudan yeni değer yazılabiliyor.
+- Son elektrik fiyatı, konum, sıcaklık, lastik türü ve şarj tipi öneri olarak yeniden kullanılabiliyor.
+- Kullanıcı önerilen alanları elle doldurmazsa Kaydet sırasında öneriler otomatik olarak kayda aktarılıyor.
+- Otomatik enerji ve toplam maliyet hesaplamaları önerilen değerlerle de çalışıyor.
+- İstenen doğrultuda yeni şarj ekranına son kayıt özeti eklenmedi.

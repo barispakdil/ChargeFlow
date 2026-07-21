@@ -189,6 +189,7 @@ function HomePage() {
       <AddChargeSheet
         isOpen={isAddSheetOpen}
         lastSession={latestSession}
+        allSessions={sortedSessions}
         onClose={() => setIsAddSheetOpen(false)}
         onSave={handleSave}
         vehicleSettings={{
