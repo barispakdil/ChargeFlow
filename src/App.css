@@ -5165,3 +5165,62 @@ a {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* =========================================================
+   v1.1 — SMART CHART SCALING & LAST POINT EMPHASIS
+   ========================================================= */
+.metric-chart-point-last .metric-chart-dot-halo {
+  fill: color-mix(in srgb, var(--accent, #35d9ff) 34%, transparent);
+  animation: metric-chart-last-pulse 2.2s ease-in-out infinite;
+}
+
+.metric-chart-point-last .metric-chart-dot {
+  r: 5px;
+  fill: var(--accent-secondary, #46f2c2);
+  stroke-width: 2.5;
+}
+
+.metric-chart-empty {
+  grid-template-rows: auto auto auto;
+  align-content: center;
+  gap: 6px;
+  padding: 24px;
+}
+
+.metric-chart-empty > span {
+  color: var(--accent, #35d9ff);
+  font-size: 30px;
+  line-height: 1;
+}
+
+.metric-chart-empty > strong {
+  color: var(--text-primary, #ffffff);
+  font-size: 13px;
+}
+
+.metric-chart-empty > small {
+  max-width: 250px;
+  color: var(--text-muted, #71849a);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+@keyframes metric-chart-last-pulse {
+  0%, 100% {
+    opacity: 0.55;
+    transform: scale(0.9);
+    transform-origin: center;
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+    transform-origin: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .metric-chart-point-last .metric-chart-dot-halo {
+    animation: none;
+  }
+}

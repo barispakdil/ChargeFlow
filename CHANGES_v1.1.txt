@@ -1,0 +1,10 @@
+ChargeFlow v1.1
+
+- İstatistik grafiklerinde 0 değerleri çizim ve Y ekseni hesabı dışında bırakıldı.
+- Y ekseni alt sınırı sıfırdan farklı en düşük değerin %10 altına ayarlandı.
+- Y ekseni üst sınırı sıfırdan farklı en yüksek değerin %10 üstüne ayarlandı.
+- Tek veri noktası için güvenli dinamik ölçek eklendi.
+- Tüm değerler 0 ise bilgilendirici boş durum görünümü eklendi.
+- Grafik çizgileri yumuşatıldı.
+- Gradient alan dolgusu ve glow efekti korundu/iyileştirildi.
+- Son veri noktası daha belirgin ve hareketli hale getirildi.

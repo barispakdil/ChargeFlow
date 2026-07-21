@@ -27,20 +27,51 @@ function formatValue(value: number, maximumFractionDigits: number) {
   return value.toLocaleString("tr-TR", { maximumFractionDigits });
 }
 
-function getNiceMaximum(value: number) {
-  if (value <= 0) return 1;
+function getYAxisDomain(values: number[]) {
+  const minimumValue = Math.min(...values);
+  const maximumValue = Math.max(...values);
 
-  const roughStep = value / 4;
-  const magnitude = 10 ** Math.floor(Math.log10(roughStep));
-  const normalized = roughStep / magnitude;
-  let niceNormalized = 1;
+  // Kullanıcının istediği ölçek: minimumun %10 altı, maksimumun %10 üstü.
+  let minimum = minimumValue - Math.abs(minimumValue) * 0.1;
+  let maximum = maximumValue + Math.abs(maximumValue) * 0.1;
 
-  if (normalized > 5) niceNormalized = 10;
-  else if (normalized > 2) niceNormalized = 5;
-  else if (normalized > 1) niceNormalized = 2;
+  // Çok küçük ya da teorik olarak aynı sınırlara düşen değerlerde grafiği koru.
+  if (maximum <= minimum) {
+    const padding = Math.max(Math.abs(maximumValue) * 0.1, 1);
+    minimum = minimumValue - padding;
+    maximum = maximumValue + padding;
+  }
 
-  const step = niceNormalized * magnitude;
-  return Math.ceil(value / step) * step;
+  return { minimum, maximum };
+}
+
+interface PositionedPoint extends MetricChartPoint {
+  x: number;
+  y: number;
+}
+
+function createSmoothPath(points: PositionedPoint[]) {
+  if (points.length === 0) return "";
+  if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
+
+  const smoothing = 0.18;
+  let path = `M ${points[0].x} ${points[0].y}`;
+
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const current = points[index];
+    const next = points[index + 1];
+    const previous = points[index - 1] ?? current;
+    const afterNext = points[index + 2] ?? next;
+
+    const controlPointOneX = current.x + (next.x - previous.x) * smoothing;
+    const controlPointOneY = current.y + (next.y - previous.y) * smoothing;
+    const controlPointTwoX = next.x - (afterNext.x - current.x) * smoothing;
+    const controlPointTwoY = next.y - (afterNext.y - current.y) * smoothing;
+
+    path += ` C ${controlPointOneX} ${controlPointOneY}, ${controlPointTwoX} ${controlPointTwoY}, ${next.x} ${next.y}`;
+  }
+
+  return path;
 }
 
 function MonthlyMetricChart({
@@ -54,8 +85,9 @@ function MonthlyMetricChart({
   const gradientId = useId().replace(/:/g, "");
   const glowId = useId().replace(/:/g, "");
 
+  // 0 değerleri hem ölçekten hem de çizimden çıkarılır.
   const normalizedPoints = useMemo(
-    () => points.filter((point) => Number.isFinite(point.value)),
+    () => points.filter((point) => Number.isFinite(point.value) && point.value !== 0),
     [points],
   );
 
@@ -64,30 +96,32 @@ function MonthlyMetricChart({
     PADDING_LEFT + PADDING_RIGHT + Math.max(normalizedPoints.length - 1, 1) * 78,
   );
   const plotWidth = chartWidth - PADDING_LEFT - PADDING_RIGHT;
-  const maximumValue = getNiceMaximum(
-    Math.max(...normalizedPoints.map((point) => point.value), 0),
-  );
 
-  const plottedPoints = normalizedPoints.map((point, index) => {
+  const domain = normalizedPoints.length
+    ? getYAxisDomain(normalizedPoints.map((point) => point.value))
+    : { minimum: 0, maximum: 1 };
+  const domainRange = domain.maximum - domain.minimum;
+
+  const plottedPoints: PositionedPoint[] = normalizedPoints.map((point, index) => {
     const x =
       normalizedPoints.length === 1
         ? PADDING_LEFT + plotWidth / 2
         : PADDING_LEFT + (index / (normalizedPoints.length - 1)) * plotWidth;
-    const y = PADDING_TOP + PLOT_HEIGHT - (point.value / maximumValue) * PLOT_HEIGHT;
+    const normalizedValue = (point.value - domain.minimum) / domainRange;
+    const y = PADDING_TOP + PLOT_HEIGHT - normalizedValue * PLOT_HEIGHT;
     return { ...point, x, y };
   });
 
-  const linePoints = plottedPoints.map((point) => `${point.x},${point.y}`).join(" ");
-  const areaPoints = plottedPoints.length
-    ? `${PADDING_LEFT},${PADDING_TOP + PLOT_HEIGHT} ${linePoints} ${
-        plottedPoints[plottedPoints.length - 1].x
-      },${PADDING_TOP + PLOT_HEIGHT}`
+  const linePath = createSmoothPath(plottedPoints);
+  const baselineY = PADDING_TOP + PLOT_HEIGHT;
+  const areaPath = plottedPoints.length
+    ? `${linePath} L ${plottedPoints[plottedPoints.length - 1].x} ${baselineY} L ${plottedPoints[0].x} ${baselineY} Z`
     : "";
 
   const yTicks = Array.from({ length: 5 }, (_, index) => {
     const ratio = index / 4;
     return {
-      value: maximumValue * (1 - ratio),
+      value: domain.maximum - domainRange * ratio,
       y: PADDING_TOP + PLOT_HEIGHT * ratio,
     };
   });
@@ -103,7 +137,11 @@ function MonthlyMetricChart({
       </div>
 
       {normalizedPoints.length === 0 ? (
-        <div className="metric-chart-empty">Grafik için henüz yeterli kayıt yok.</div>
+        <div className="metric-chart-empty">
+          <span aria-hidden="true">⌁</span>
+          <strong>Henüz yeterli veri yok</strong>
+          <small>Sıfırdan farklı kayıtlar eklendikçe grafik burada oluşacak.</small>
+        </div>
       ) : (
         <div className="metric-chart-scroll">
           <svg
@@ -115,7 +153,7 @@ function MonthlyMetricChart({
           >
             <defs>
               <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="currentColor" stopOpacity="0.3" />
+                <stop offset="0%" stopColor="currentColor" stopOpacity="0.32" />
                 <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
               </linearGradient>
               <filter id={glowId} x="-30%" y="-30%" width="160%" height="160%">
@@ -151,43 +189,49 @@ function MonthlyMetricChart({
               className="metric-chart-axis"
               x1={PADDING_LEFT}
               x2={chartWidth - PADDING_RIGHT}
-              y1={PADDING_TOP + PLOT_HEIGHT}
-              y2={PADDING_TOP + PLOT_HEIGHT}
+              y1={baselineY}
+              y2={baselineY}
             />
 
-            {areaPoints && (
-              <polygon className="metric-chart-area" points={areaPoints} fill={`url(#${gradientId})`} />
+            {areaPath && (
+              <path className="metric-chart-area" d={areaPath} fill={`url(#${gradientId})`} />
             )}
             {plottedPoints.length > 1 && (
-              <polyline className="metric-chart-line-glow" points={linePoints} filter={`url(#${glowId})`} />
+              <path className="metric-chart-line-glow" d={linePath} filter={`url(#${glowId})`} />
             )}
             {plottedPoints.length > 1 && (
-              <polyline className="metric-chart-line" points={linePoints} />
+              <path className="metric-chart-line" d={linePath} />
             )}
 
-            {plottedPoints.map((point) => (
-              <g className="metric-chart-point" key={point.key}>
-                <circle className="metric-chart-dot-halo" cx={point.x} cy={point.y} r="8" />
-                <circle className="metric-chart-dot" cx={point.x} cy={point.y} r="4" />
-                <text
-                  className="metric-chart-value"
-                  x={point.x}
-                  y={Math.max(point.y - 12, 12)}
-                  textAnchor="middle"
+            {plottedPoints.map((point, index) => {
+              const isLastPoint = index === plottedPoints.length - 1;
+              return (
+                <g
+                  className={`metric-chart-point${isLastPoint ? " metric-chart-point-last" : ""}`}
+                  key={point.key}
                 >
-                  {formatValue(point.value, maximumFractionDigits)}
-                </text>
-                <text
-                  className="metric-chart-x-label"
-                  x={point.x}
-                  y={VIEWBOX_HEIGHT - 18}
-                  textAnchor="middle"
-                >
-                  {point.shortLabel}
-                </text>
-                <title>{`${point.label}: ${formatValue(point.value, maximumFractionDigits)} ${unit}`}</title>
-              </g>
-            ))}
+                  <circle className="metric-chart-dot-halo" cx={point.x} cy={point.y} r="8" />
+                  <circle className="metric-chart-dot" cx={point.x} cy={point.y} r="4" />
+                  <text
+                    className="metric-chart-value"
+                    x={point.x}
+                    y={Math.max(point.y - 12, 12)}
+                    textAnchor="middle"
+                  >
+                    {formatValue(point.value, maximumFractionDigits)}
+                  </text>
+                  <text
+                    className="metric-chart-x-label"
+                    x={point.x}
+                    y={VIEWBOX_HEIGHT - 18}
+                    textAnchor="middle"
+                  >
+                    {point.shortLabel}
+                  </text>
+                  <title>{`${point.label}: ${formatValue(point.value, maximumFractionDigits)} ${unit}`}</title>
+                </g>
+              );
+            })}
           </svg>
         </div>
       )}
