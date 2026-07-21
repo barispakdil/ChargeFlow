@@ -1,0 +1,7 @@
+ChargeFlow v1.2
+
+- Yeni kurulumlarda örnek şarj kayıtları artık oluşturulmaz.
+- Önceki sürümlerin eksiksiz demo veri seti bir defaya mahsus otomatik temizlenir.
+- Kullanıcının gerçek kayıtlarına dokunulmaz.
+- Boş ana sayfaya ilk şarjı eklemeyi kolaylaştıran yönlendirici görünüm eklendi.
+- İstatistik ekranları gerçek kullanıcı verileri eklenene kadar boş durumlarını korur.

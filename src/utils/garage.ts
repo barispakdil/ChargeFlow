@@ -1,12 +1,12 @@
 import type { ChargingSession } from "../types/ChargingSession";
 import type { VehicleProfile } from "../types/VehicleProfile";
-import { sampleChargingSessions } from "../data/sampleData";
 import { CHARGING_SESSIONS_STORAGE_KEY } from "./storage";
 import { VEHICLE_SETTINGS_STORAGE_KEY } from "./vehicleSettings";
 
 export const VEHICLES_STORAGE_KEY = "chargeflow-vehicles-v2";
 export const ACTIVE_VEHICLE_STORAGE_KEY = "chargeflow-active-vehicle-v2";
 const VEHICLE_SESSIONS_PREFIX = "chargeflow-vehicle-sessions-v2:";
+const DEMO_DATA_CLEANUP_KEY = "chargeflow-demo-data-cleaned-v1";
 
 function createId() {
   return `vehicle-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -35,6 +35,22 @@ export function vehicleSessionsKey(vehicleId: string) {
   return `${VEHICLE_SESSIONS_PREFIX}${vehicleId}`;
 }
 
+
+function removeLegacyDemoData(vehicles: VehicleProfile[]) {
+  if (localStorage.getItem(DEMO_DATA_CLEANUP_KEY) === "true") return;
+
+  vehicles.forEach((vehicle) => {
+    const sessions = loadVehicleSessions(vehicle.id);
+    const isLegacyDemoSet =
+      sessions.length >= 30 &&
+      sessions.every((session) => session.notes === "Örnek test kaydı");
+
+    if (isLegacyDemoSet) saveVehicleSessions(vehicle.id, []);
+  });
+
+  localStorage.setItem(DEMO_DATA_CLEANUP_KEY, "true");
+}
+
 export function initializeGarage(): {
   vehicles: VehicleProfile[];
   activeVehicleId: string;
@@ -50,6 +66,7 @@ export function initializeGarage(): {
           ? (savedActive as string)
           : vehicles[0].id;
         localStorage.setItem(ACTIVE_VEHICLE_STORAGE_KEY, activeVehicleId);
+        removeLegacyDemoData(vehicles);
         return { vehicles, activeVehicleId };
       }
     } catch {
@@ -78,14 +95,14 @@ export function initializeGarage(): {
     createdAt: new Date().toISOString(),
   };
 
-  let sessions = sampleChargingSessions;
+  let sessions: ChargingSession[] = [];
   const oldSessions = localStorage.getItem(CHARGING_SESSIONS_STORAGE_KEY);
   if (oldSessions) {
     try {
       const parsed = JSON.parse(oldSessions) as ChargingSession[];
       if (Array.isArray(parsed)) sessions = parsed;
     } catch {
-      // Örnek veri korunur.
+      // Bozuk eski kayıtlar yok sayılır.
     }
   }
 

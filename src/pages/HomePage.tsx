@@ -149,11 +149,22 @@ function HomePage() {
         )}
 
         {activeTab === "home" && (
-          <section className="month-groups continuous-month-groups">
-            {groupedMonths.map((month) => (
-              <MonthGroup key={month.key} month={month} sortedSessions={sortedSessions} onSessionOpen={setSelectedSession} onSessionDelete={handleDelete} />
-            ))}
-          </section>
+          sortedSessions.length > 0 ? (
+            <section className="month-groups continuous-month-groups">
+              {groupedMonths.map((month) => (
+                <MonthGroup key={month.key} month={month} sortedSessions={sortedSessions} onSessionOpen={setSelectedSession} onSessionDelete={handleDelete} />
+              ))}
+            </section>
+          ) : (
+            <section className="home-empty-state" aria-label="Henüz şarj kaydı yok">
+              <div className="home-empty-icon" aria-hidden="true">⚡</div>
+              <h1>İlk şarjını ekle</h1>
+              <p>Henüz bu araç için kayıt bulunmuyor. İlk şarj işlemini ekleyerek tüketim ve maliyet istatistiklerini oluşturmaya başla.</p>
+              <button type="button" onClick={() => setIsAddSheetOpen(true)}>
+                <span aria-hidden="true">+</span> İlk Şarjı Ekle
+              </button>
+            </section>
+          )
         )}
 
         {activeTab === "statistics" && <StatisticsView summary={statisticsSummary} sessions={sortedSessions} />}

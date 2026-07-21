@@ -5224,3 +5224,65 @@ a {
     animation: none;
   }
 }
+
+/* v1.2 — empty first-run home */
+.home-empty-state {
+  width: min(100% - 32px, 520px);
+  margin: clamp(88px, 18vh, 180px) auto 120px;
+  padding: 34px 24px 28px;
+  text-align: center;
+  border: 1px solid var(--border-color);
+  border-radius: 28px;
+  background: var(--card-background);
+  box-shadow: var(--card-shadow);
+}
+
+.home-empty-icon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 18px;
+  border-radius: 22px;
+  font-size: 30px;
+  color: var(--accent-contrast);
+  background: linear-gradient(145deg, var(--accent-color), var(--accent-secondary));
+  box-shadow: 0 14px 32px color-mix(in srgb, var(--accent-color) 28%, transparent);
+}
+
+.home-empty-state h1 {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+}
+
+.home-empty-state p {
+  max-width: 390px;
+  margin: 12px auto 24px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.home-empty-state button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 22px;
+  border: 0;
+  border-radius: 16px;
+  color: var(--accent-contrast);
+  background: var(--accent-color);
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+  box-shadow: 0 12px 26px color-mix(in srgb, var(--accent-color) 24%, transparent);
+}
+
+.home-empty-state button span {
+  font-size: 22px;
+  line-height: 1;
+}
