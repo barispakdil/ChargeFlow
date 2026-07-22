@@ -1,0 +1,6 @@
+ChargeFlow v1.5
+
+- Ortalama tüketim grafiklerinde 10 kWh/100 km altındaki değerler gösterilmez.
+- Ortalama tüketim grafiklerinde 29 kWh/100 km üstündeki değerler gösterilmez.
+- 10 ve 29 sınır değerleri grafikte kalır.
+- Diğer grafikler ve genel toplam kartları bu filtreden etkilenmez.

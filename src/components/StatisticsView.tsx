@@ -134,12 +134,20 @@ function createGroupedPoints(sessions: ChargingSession[], range: Exclude<ChartRa
 }
 
 function toMetricPoints(points: AggregatedPoint[], metric: MetricKey): MetricChartPoint[] {
-  return points.map((point) => ({
-    key: point.key,
-    label: point.label,
-    shortLabel: point.shortLabel,
-    value: point[metric],
-  }));
+  return points
+    .filter((point) => {
+      if (metric !== "consumption") return true;
+
+      // Ortalama tüketim grafiğinde gerçekçi aralığın dışındaki
+      // 10 kWh/100 km altı ve 29 kWh/100 km üstü değerleri gösterme.
+      return point.consumption >= 10 && point.consumption <= 29;
+    })
+    .map((point) => ({
+      key: point.key,
+      label: point.label,
+      shortLabel: point.shortLabel,
+      value: point[metric],
+    }));
 }
 
 function StatisticsView({ summary, sessions }: StatisticsViewProps) {
