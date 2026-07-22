@@ -51,6 +51,7 @@ function isVehicleProfile(value: unknown): value is VehicleProfile {
     typeof vehicle.name === "string" &&
     typeof vehicle.model === "string" &&
     (vehicle.batteryCapacityKwh === null || isFiniteNumber(vehicle.batteryCapacityKwh)) &&
+    (vehicle.preferredChargeEndPercent === undefined || isFiniteNumber(vehicle.preferredChargeEndPercent)) &&
     typeof vehicle.createdAt === "string"
   );
 }
@@ -113,6 +114,7 @@ export function parseBackup(rawText: string): ChargeFlowBackup {
           name: "İçe aktarılan araç",
           model: "",
           batteryCapacityKwh: null,
+          preferredChargeEndPercent: 80,
           createdAt: new Date().toISOString(),
         },
         sessions,
@@ -134,7 +136,16 @@ export function parseBackup(rawText: string): ChargeFlowBackup {
     throw new Error("Yedekteki araç veya şarj kayıtlarından biri geçersiz.");
   }
 
-  const vehicles = entries as VehicleBackupEntry[];
+  const vehicles = (entries as VehicleBackupEntry[]).map((entry) => ({
+    ...entry,
+    vehicle: {
+      ...entry.vehicle,
+      preferredChargeEndPercent:
+        Number.isFinite(entry.vehicle.preferredChargeEndPercent) && entry.vehicle.preferredChargeEndPercent >= 1 && entry.vehicle.preferredChargeEndPercent <= 100
+          ? entry.vehicle.preferredChargeEndPercent
+          : 80,
+    },
+  }));
   const activeVehicleId =
     typeof backup.activeVehicleId === "string" &&
     vehicles.some((entry) => entry.vehicle.id === backup.activeVehicleId)

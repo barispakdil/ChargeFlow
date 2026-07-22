@@ -6,6 +6,7 @@ import SessionCard from "./SessionCard";
 interface MonthGroupProps {
   month: GroupedMonth;
   sortedSessions: ChargingSession[];
+  batteryCapacityKwh?: number | null;
   onSessionOpen: (session: ChargingSession) => void;
   onSessionDelete: (sessionId: number) => void;
 }
@@ -13,6 +14,7 @@ interface MonthGroupProps {
 function MonthGroup({
   month,
   sortedSessions,
+  batteryCapacityKwh,
   onSessionOpen,
   onSessionDelete,
 }: MonthGroupProps) {
@@ -82,6 +84,7 @@ function MonthGroup({
               <SessionCard
                 session={session}
                 previousSession={sortedSessions[globalIndex + 1]}
+                batteryCapacityKwh={batteryCapacityKwh}
                 onOpen={onSessionOpen}
                 onDelete={onSessionDelete}
               />

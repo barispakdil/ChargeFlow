@@ -26,6 +26,10 @@ function normalizeProfile(value: Partial<VehicleProfile>): VehicleProfile | null
     model: typeof value.model === "string" ? value.model : "",
     batteryCapacityKwh:
       Number.isFinite(capacity) && capacity > 0 ? capacity : null,
+    preferredChargeEndPercent:
+      Number.isFinite(Number(value.preferredChargeEndPercent)) && Number(value.preferredChargeEndPercent) >= 1 && Number(value.preferredChargeEndPercent) <= 100
+        ? Number(value.preferredChargeEndPercent)
+        : 80,
     createdAt:
       typeof value.createdAt === "string" ? value.createdAt : new Date().toISOString(),
   };
@@ -92,6 +96,7 @@ export function initializeGarage(): {
     name: model.trim() || "Aracım",
     model,
     batteryCapacityKwh,
+    preferredChargeEndPercent: 80,
     createdAt: new Date().toISOString(),
   };
 
@@ -116,12 +121,14 @@ export function createVehicleProfile(
   name: string,
   model: string,
   batteryCapacityKwh: number | null,
+  preferredChargeEndPercent = 80,
 ): VehicleProfile {
   return {
     id: createId(),
     name: name.trim() || model.trim() || "Yeni araç",
     model: model.trim(),
     batteryCapacityKwh,
+    preferredChargeEndPercent,
     createdAt: new Date().toISOString(),
   };
 }

@@ -4,7 +4,6 @@ import BottomNavigation from "../components/BottomNavigation";
 import BackupView from "../components/BackupView";
 import HomeHeader from "../components/HomeHeader";
 import MonthGroup from "../components/MonthGroup";
-import SessionDetailSheet from "../components/SessionDetailSheet";
 import StatisticsView from "../components/StatisticsView";
 import TabPlaceholder from "../components/TabPlaceholder";
 import { useChargingSessions } from "../hooks/useChargingSessions";
@@ -64,7 +63,7 @@ function HomePage() {
     addChargingSession,
     updateChargingSession,
     deleteChargingSession,
-  } = useChargingSessions(activeVehicleId);
+  } = useChargingSessions(activeVehicleId, activeVehicle?.batteryCapacityKwh);
 
   function changeActiveVehicle(vehicleId: string) {
     if (!vehicles.some((vehicle) => vehicle.id === vehicleId)) return;
@@ -72,8 +71,8 @@ function HomePage() {
     setActiveTab("home");
   }
 
-  function addVehicle(name: string, model: string, batteryCapacityKwh: number) {
-    const vehicle = createVehicleProfile(name, model, batteryCapacityKwh);
+  function addVehicle(name: string, model: string, batteryCapacityKwh: number, preferredChargeEndPercent: number) {
+    const vehicle = createVehicleProfile(name, model, batteryCapacityKwh, preferredChargeEndPercent);
     saveVehicleSessions(vehicle.id, []);
     setVehicles((current) => [...current, vehicle]);
     setActiveVehicleId(vehicle.id);
@@ -131,8 +130,13 @@ function HomePage() {
   }
 
   function handleSave(session: ChargingSession) {
-    addChargingSession(session);
-    setIsAddSheetOpen(false);
+    if (selectedSession) {
+      updateChargingSession(session);
+      setSelectedSession(null);
+    } else {
+      addChargingSession(session);
+      setIsAddSheetOpen(false);
+    }
     setActiveTab("home");
   }
 
@@ -152,7 +156,7 @@ function HomePage() {
           sortedSessions.length > 0 ? (
             <section className="month-groups continuous-month-groups">
               {groupedMonths.map((month) => (
-                <MonthGroup key={month.key} month={month} sortedSessions={sortedSessions} onSessionOpen={setSelectedSession} onSessionDelete={handleDelete} />
+                <MonthGroup key={month.key} month={month} sortedSessions={sortedSessions} batteryCapacityKwh={activeVehicle?.batteryCapacityKwh} onSessionOpen={setSelectedSession} onSessionDelete={handleDelete} />
               ))}
             </section>
           ) : (
@@ -167,7 +171,7 @@ function HomePage() {
           )
         )}
 
-        {activeTab === "statistics" && <StatisticsView summary={statisticsSummary} sessions={sortedSessions} />}
+        {activeTab === "statistics" && <StatisticsView summary={statisticsSummary} sessions={sortedSessions} batteryCapacityKwh={activeVehicle?.batteryCapacityKwh} />}
         {activeTab === "analysis" && <TabPlaceholder type="analysis" />}
         {activeTab === "more" && (
           <BackupView
@@ -187,22 +191,18 @@ function HomePage() {
       <BottomNavigation activeTab={activeTab} onChange={setActiveTab} />
 
       <AddChargeSheet
-        isOpen={isAddSheetOpen}
+        isOpen={isAddSheetOpen || Boolean(selectedSession)}
         lastSession={latestSession}
         allSessions={sortedSessions}
-        onClose={() => setIsAddSheetOpen(false)}
+        onClose={() => { setIsAddSheetOpen(false); setSelectedSession(null); }}
         onSave={handleSave}
         vehicleSettings={{
           model: activeVehicle?.model ?? "",
           batteryCapacityKwh: activeVehicle?.batteryCapacityKwh ?? null,
+          preferredChargeEndPercent: activeVehicle?.preferredChargeEndPercent ?? 80,
         }}
-      />
-
-      <SessionDetailSheet
-        session={selectedSession}
-        onClose={() => setSelectedSession(null)}
-        onUpdate={updateChargingSession}
-        onDelete={handleDelete}
+        editingSession={selectedSession}
+        onDelete={(sessionId) => { handleDelete(sessionId); setSelectedSession(null); }}
       />
     </main>
   );

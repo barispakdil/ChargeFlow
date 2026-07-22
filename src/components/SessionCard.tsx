@@ -5,6 +5,7 @@ import {
   type PointerEvent,
 } from "react";
 import type { ChargingSession } from "../types/ChargingSession";
+import { calculateIntervalConsumption } from "../utils/consumption";
 import {
   getDayDifference,
   getSessionDate,
@@ -14,6 +15,7 @@ import {
 interface SessionCardProps {
   session: ChargingSession;
   previousSession?: ChargingSession;
+  batteryCapacityKwh?: number | null;
   onOpen: (session: ChargingSession) => void;
   onDelete: (sessionId: number) => void;
 }
@@ -26,6 +28,7 @@ const MAX_SWIPE_DISTANCE = 220;
 function SessionCard({
   session,
   previousSession,
+  batteryCapacityKwh,
   onOpen,
   onDelete,
 }: SessionCardProps) {
@@ -38,16 +41,15 @@ function SessionCard({
   );
   const didSwipe = useRef(false);
 
-  const distance = previousSession
-    ? Math.max(0, session.odometer - previousSession.odometer)
-    : 0;
+  const { distance, consumption } = calculateIntervalConsumption(
+    session,
+    previousSession,
+    batteryCapacityKwh,
+  );
 
   const dayDifference = previousSession
     ? getDayDifference(session, previousSession)
     : 0;
-
-  const consumption =
-    distance > 0 ? (session.energy / distance) * 100 : 0;
 
   const dailyAverage =
     dayDifference > 0 ? Math.round(distance / dayDifference) : 0;

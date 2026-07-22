@@ -1,0 +1,11 @@
+ChargeFlow v1.7
+
+- Ortalama tüketim hesabı başlangıç yüzdesinden bağımsız enerji dengesi formülüne geçirildi.
+- Formül: eklenen enerji + önceki şarj bitiş enerjisi - mevcut şarj bitiş enerjisi.
+- Yanlış girilmiş başlangıç yüzdesi artık tüketim hesabını etkilemez.
+- Şarj kartı açıldığında detay ekranı yerine Yeni Şarj formuyla aynı arayüz kullanılır.
+- Mevcut kayıtlar aynı form üzerinden düzenlenebilir ve silinebilir.
+- Yeni kayıtta bitiş yüzdesi gerçek input değeri değil, araç ayarındaki tercih edilen yüzdeyi gösteren placeholder olarak görünür.
+- Bitiş yüzdesi boş bırakılırsa kayıt sırasında ayardaki değer otomatik kaydedilir.
+- Araç ayarlarına “Aracınızı çoğunlukla yüzde kaça kadar şarj ediyorsunuz?” alanı eklendi.
+- Eski araç ve yedeklerde tercih edilen bitiş yüzdesi otomatik olarak %80 kabul edilir.

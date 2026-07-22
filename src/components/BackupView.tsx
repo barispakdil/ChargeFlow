@@ -27,7 +27,7 @@ interface BackupViewProps {
   vehicles: VehicleProfile[];
   activeVehicleId: string;
   onActiveVehicleChange: (vehicleId: string) => void;
-  onAddVehicle: (name: string, model: string, batteryCapacityKwh: number) => void;
+  onAddVehicle: (name: string, model: string, batteryCapacityKwh: number, preferredChargeEndPercent: number) => void;
   onUpdateVehicle: (vehicle: VehicleProfile) => void;
   onDeleteVehicle: (vehicleId: string) => void;
   onRestoreBackup: (backup: ChargeFlowBackup, mode: ImportMode) => void;
@@ -64,6 +64,7 @@ function BackupView({
   const [vehicleName, setVehicleName] = useState(activeVehicle?.name ?? "");
   const [vehicleModel, setVehicleModel] = useState(activeVehicle?.model ?? "");
   const [batteryCapacity, setBatteryCapacity] = useState(activeVehicle?.batteryCapacityKwh?.toString() ?? "");
+  const [preferredChargeEndPercent, setPreferredChargeEndPercent] = useState(activeVehicle?.preferredChargeEndPercent?.toString() ?? "80");
   const [isAddingVehicle, setIsAddingVehicle] = useState(false);
   const [vehicleMessage, setVehicleMessage] = useState("");
 
@@ -71,6 +72,7 @@ function BackupView({
     setVehicleName(activeVehicle?.name ?? "");
     setVehicleModel(activeVehicle?.model ?? "");
     setBatteryCapacity(activeVehicle?.batteryCapacityKwh?.toString() ?? "");
+    setPreferredChargeEndPercent(activeVehicle?.preferredChargeEndPercent?.toString() ?? "80");
     setVehicleMessage("");
     setIsAddingVehicle(false);
   }, [activeVehicleId, activeVehicle]);
@@ -96,8 +98,13 @@ function BackupView({
       setVehicleMessage("Araç için ayırt edici bir ad girin.");
       return;
     }
+    const preferredEnd = Number(preferredChargeEndPercent);
+    if (!Number.isFinite(preferredEnd) || preferredEnd < 1 || preferredEnd > 100) {
+      setVehicleMessage("Şarj bitiş yüzdesi 1 ile 100 arasında olmalıdır.");
+      return;
+    }
     if (isAddingVehicle) {
-      onAddVehicle(vehicleName, vehicleModel, capacity);
+      onAddVehicle(vehicleName, vehicleModel, capacity, preferredEnd);
       setVehicleMessage("Yeni araç oluşturuldu.");
       setIsAddingVehicle(false);
       return;
@@ -108,6 +115,7 @@ function BackupView({
       name: vehicleName.trim(),
       model: vehicleModel.trim(),
       batteryCapacityKwh: capacity,
+      preferredChargeEndPercent: preferredEnd,
     });
     setVehicleMessage("Araç bilgileri kaydedildi.");
   }
@@ -117,6 +125,7 @@ function BackupView({
     setVehicleName("");
     setVehicleModel("");
     setBatteryCapacity("");
+    setPreferredChargeEndPercent("80");
     setVehicleMessage("");
   }
 
@@ -237,6 +246,14 @@ function BackupView({
               <input type="number" min="1" max="250" step="0.1" inputMode="decimal" value={batteryCapacity} onChange={(event) => { setBatteryCapacity(event.target.value); setVehicleMessage(""); }} placeholder="75" />
               <strong>kWh</strong>
             </div>
+          </label>
+          <label className="form-field compact-field">
+            <span>Aracınızı çoğunlukla yüzde kaça kadar şarj ediyorsunuz?</span>
+            <div className="input-with-unit">
+              <input type="number" min="1" max="100" step="1" inputMode="numeric" value={preferredChargeEndPercent} onChange={(event) => { setPreferredChargeEndPercent(event.target.value); setVehicleMessage(""); }} placeholder="80" />
+              <strong>%</strong>
+            </div>
+            <small>Yeni şarj kaydındaki varsayılan bitiş yüzdesi olarak kullanılır.</small>
           </label>
         </div>
 

@@ -10,6 +10,8 @@ interface AddChargeSheetProps {
   onClose: () => void;
   onSave: (session: ChargingSession) => void;
   vehicleSettings: VehicleSettings;
+  editingSession?: ChargingSession | null;
+  onDelete?: (sessionId: number) => void;
 }
 
 type TireType = NonNullable<ChargingSession["tireType"]>;
@@ -52,11 +54,13 @@ function AddChargeSheet({
   onClose,
   onSave,
   vehicleSettings,
+  editingSession,
+  onDelete,
 }: AddChargeSheetProps) {
   const [date, setDate] = useState(getCurrentDate());
   const [time, setTime] = useState(getCurrentTime());
   const [startBattery, setStartBattery] = useState("");
-  const [endBattery, setEndBattery] = useState("80");
+  const [endBattery, setEndBattery] = useState("");
   const [energy, setEnergy] = useState("");
   const [isEnergyManual, setIsEnergyManual] = useState(false);
   const [odometer, setOdometer] = useState("");
@@ -79,45 +83,51 @@ function AddChargeSheet({
       return;
     }
 
-    setDate(getCurrentDate());
-    setTime(getCurrentTime());
-    setStartBattery("");
-    setEndBattery("80");
-    setEnergy("");
-    setIsEnergyManual(false);
+    if (editingSession) {
+      setDate(editingSession.date);
+      setTime(editingSession.time);
+      setStartBattery(String(editingSession.startBattery));
+      setEndBattery(String(editingSession.endBattery));
+      setEnergy(String(editingSession.energy));
+      setIsEnergyManual(true);
+      setOdometer(String(editingSession.odometer));
+      setPricePerKwh(String(editingSession.pricePerKwh));
+      setLocation(editingSession.location);
+      setTemperature(editingSession.temperature === undefined ? "" : String(editingSession.temperature));
+      setTireType(editingSession.tireType ?? "");
+      setChargingType(editingSession.chargingType ?? "");
+      setCost(String(editingSession.cost));
+      setShowOptional(Boolean(editingSession.temperature !== undefined || editingSession.tireType || editingSession.chargingType));
+    } else {
+      setDate(getCurrentDate());
+      setTime(getCurrentTime());
+      setStartBattery("");
+      setEndBattery("");
+      setEnergy("");
+      setIsEnergyManual(false);
+      setOdometer("");
+      setPricePerKwh("");
+      setLocation("");
+      setTemperature("");
+      setTireType("");
+      setChargingType("");
+      setShowOptional(Boolean(lastSession?.temperature !== undefined || lastSession?.tireType || lastSession?.chargingType));
+      setCost("");
+    }
     setError("");
-
-    // Önceki kayıttan gelen değerler input değeri olarak değil,
-    // soluk öneri (placeholder) olarak gösterilir.
-    setOdometer("");
-    setPricePerKwh("");
-    setLocation("");
-    setTemperature("");
-    setTireType("");
-    setChargingType("");
-
-    setShowOptional(
-      Boolean(
-        lastSession?.temperature !== undefined ||
-          lastSession?.tireType ||
-          lastSession?.chargingType,
-      ),
-    );
     setOpenSelector(null);
-    setCost("");
-  }, [isOpen, lastSession]);
+  }, [isOpen, lastSession, editingSession]);
 
 
   useEffect(() => {
     if (isEnergyManual) return;
 
     const startValue = Number(startBattery);
-    const endValue = Number(endBattery);
+    const endValue = endBattery.trim() === "" ? vehicleSettings.preferredChargeEndPercent : Number(endBattery);
     const capacity = vehicleSettings.batteryCapacityKwh;
 
     if (
       startBattery === "" ||
-      endBattery === "" ||
       capacity === null ||
       capacity <= 0 ||
       endValue <= startValue
@@ -166,7 +176,7 @@ function AddChargeSheet({
   );
   const endPercent = Math.min(
     100,
-    Math.max(0, endBattery === "" ? 0 : Number(endBattery)),
+    Math.max(0, endBattery === "" ? vehicleSettings.preferredChargeEndPercent : Number(endBattery)),
   );
   const chargeRangeStart = Math.min(startPercent, endPercent);
   const chargeRangeWidth = Math.max(0, endPercent - startPercent);
@@ -180,7 +190,7 @@ function AddChargeSheet({
     setError("");
 
     const startValue = Number(startBattery);
-    const endValue = Number(endBattery);
+    const endValue = endBattery.trim() === "" ? vehicleSettings.preferredChargeEndPercent : Number(endBattery);
     const energyValue = parseNumber(energy);
     const odometerValue = odometer.trim() === ""
       ? (suggestedOdometer ?? Number.NaN)
@@ -229,7 +239,8 @@ function AddChargeSheet({
     // Geriye dönük kayıtlar için kilometreyi yalnızca tarih sırasındaki
     // komşu kayıtlarla karşılaştır. Böylece eski bir kayıt eklemek mümkündür.
     const newTimestamp = new Date(`${date}T${time || "00:00"}`).getTime();
-    const chronologicalSessions = [...allSessions]
+    const chronologicalSessions = allSessions
+      .filter((session) => session.id !== editingSession?.id)
       .map((session) => ({
         session,
         timestamp: new Date(`${session.date}T${session.time || "00:00"}`).getTime(),
@@ -271,7 +282,7 @@ function AddChargeSheet({
     }
 
     onSave({
-      id: Date.now(),
+      id: editingSession?.id ?? Date.now(),
       date,
       time,
       startBattery: startValue,
@@ -321,9 +332,9 @@ function AddChargeSheet({
         </div>
 
         <div className="add-charge-heading">
-          <p className="eyebrow">YENİ KAYIT</p>
-          <h2>Yeni şarj</h2>
-          <small>Şarj verilerini hızlıca kaydet</small>
+          <p className="eyebrow">{editingSession ? "ŞARJ KAYDI" : "YENİ KAYIT"}</p>
+          <h2>{editingSession ? "Şarjı düzenle" : "Yeni şarj"}</h2>
+          <small>{editingSession ? "Kayıt bilgilerini aynı form üzerinden güncelle" : "Şarj verilerini hızlıca kaydet"}</small>
         </div>
 
         <form id="add-charge-form" className="charge-form compact-charge-form" onSubmit={handleSubmit}>
@@ -360,7 +371,7 @@ function AddChargeSheet({
           <section className="charge-form-section charge-core-section">
             <div className="charge-form-section-heading">
               <span>BATARYA</span>
-              <small>Varsayılan bitiş: %80</small>
+              <small>Varsayılan bitiş: %{vehicleSettings.preferredChargeEndPercent}</small>
             </div>
 
             <div className="battery-input-pair">
@@ -424,7 +435,7 @@ function AddChargeSheet({
                     inputMode="numeric"
                     value={endBattery}
                     onChange={(event) => setEndBattery(event.target.value)}
-                    required
+                    placeholder={String(vehicleSettings.preferredChargeEndPercent)}
                   />
                   <strong>%</strong>
                 </div>
@@ -676,6 +687,18 @@ function AddChargeSheet({
               </div>
             </div>
           </div>
+
+          {editingSession && onDelete && (
+            <button
+              className="delete-session-button edit-form-delete-button"
+              type="button"
+              onClick={() => {
+                if (window.confirm("Bu şarj kaydı silinsin mi?")) onDelete(editingSession.id);
+              }}
+            >
+              🗑 Kaydı Sil
+            </button>
+          )}
 
           {error && <div className="form-error">{error}</div>}
 

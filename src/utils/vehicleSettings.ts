@@ -5,6 +5,7 @@ export const VEHICLE_SETTINGS_STORAGE_KEY = "chargeflow-vehicle-settings";
 export const DEFAULT_VEHICLE_SETTINGS: VehicleSettings = {
   model: "",
   batteryCapacityKwh: null,
+  preferredChargeEndPercent: 80,
 };
 
 export function loadVehicleSettings(): VehicleSettings {
@@ -19,6 +20,10 @@ export function loadVehicleSettings(): VehicleSettings {
       model: typeof parsed.model === "string" ? parsed.model : "",
       batteryCapacityKwh:
         Number.isFinite(capacity) && capacity > 0 ? capacity : null,
+      preferredChargeEndPercent:
+        Number.isFinite(Number(parsed.preferredChargeEndPercent)) && Number(parsed.preferredChargeEndPercent) >= 1 && Number(parsed.preferredChargeEndPercent) <= 100
+          ? Number(parsed.preferredChargeEndPercent)
+          : 80,
     };
   } catch {
     return DEFAULT_VEHICLE_SETTINGS;

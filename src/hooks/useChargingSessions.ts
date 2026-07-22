@@ -8,7 +8,7 @@ import {
   sortChargingSessions,
 } from "../utils/statistics";
 
-export function useChargingSessions(vehicleId: string) {
+export function useChargingSessions(vehicleId: string, batteryCapacityKwh?: number | null) {
   const [sessionState, setSessionState] = useState(() => ({
     vehicleId,
     sessions: loadVehicleSessions(vehicleId),
@@ -34,12 +34,12 @@ export function useChargingSessions(vehicleId: string) {
     [chargingSessions],
   );
   const groupedMonths = useMemo(
-    () => groupSessionsByMonth(sortedSessions),
-    [sortedSessions],
+    () => groupSessionsByMonth(sortedSessions, batteryCapacityKwh),
+    [sortedSessions, batteryCapacityKwh],
   );
   const statisticsSummary = useMemo(
-    () => calculateStatisticsSummary(chargingSessions),
-    [chargingSessions],
+    () => calculateStatisticsSummary(chargingSessions, batteryCapacityKwh),
+    [chargingSessions, batteryCapacityKwh],
   );
 
   const updateCurrent = (

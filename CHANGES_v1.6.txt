@@ -1,0 +1,9 @@
+ChargeFlow v1.6 — SOC düzeltilmiş ortalama tüketim
+
+- Ortalama tüketim artık şarjda eklenen enerjiyi doğrudan iki kayıt arasındaki kilometreye bölmez.
+- Her sürüş aralığı için, önceki şarjın bitiş yüzdesi ile takip eden şarjın başlangıç yüzdesi arasındaki batarya düşüşü hesaplanır.
+- Araç ayarlarında batarya kapasitesi varsa tüketilen enerji şu şekilde bulunur:
+  tüketilen enerji = batarya kapasitesi × (önceki bitiş % - sonraki başlangıç %) / 100
+- Batarya kapasitesi girilmemişse takip eden şarjın eklenen enerjisi ve başlangıç/bitiş yüzdeleri kullanılarak etkin kapasite tahmini yapılır.
+- Yeni hesaplama ana sayfadaki şarj kartlarına, aylık özetlere, genel istatistiklere ve tüm tüketim grafiklerine uygulanmıştır.
+- Enerji ve maliyet grafiklerinde gerçek şarj kayıtları kullanılmaya devam eder.

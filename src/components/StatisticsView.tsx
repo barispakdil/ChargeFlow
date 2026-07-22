@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { STATISTIC_CARDS } from "../data/statisticsConfig";
 import type { ChargingSession } from "../types/ChargingSession";
 import { getSessionDate } from "../utils/date";
+import { calculateIntervalConsumption } from "../utils/consumption";
 import type { StatisticsSummary } from "../utils/statistics";
 import MonthlyMetricChart, { type MetricChartPoint } from "./MonthlyMetricChart";
 import StatisticCard from "./StatisticCard";
@@ -12,6 +13,7 @@ type MetricKey = "energy" | "consumption" | "distance" | "cost";
 interface StatisticsViewProps {
   summary: StatisticsSummary;
   sessions: ChargingSession[];
+  batteryCapacityKwh?: number | null;
 }
 
 interface AggregatedPoint {
@@ -19,6 +21,7 @@ interface AggregatedPoint {
   label: string;
   shortLabel: string;
   energy: number;
+  consumedEnergy: number;
   consumption: number;
   distance: number;
   cost: number;
@@ -53,15 +56,21 @@ function monthShort(date: Date) {
     .toLocaleUpperCase("tr-TR");
 }
 
-function createSessionPoints(sessions: ChargingSession[]): AggregatedPoint[] {
+function createSessionPoints(
+  sessions: ChargingSession[],
+  batteryCapacityKwh?: number | null,
+): AggregatedPoint[] {
   const ascending = [...sessions].sort(
     (a, b) => getSessionDate(a).getTime() - getSessionDate(b).getTime(),
   );
 
   return ascending.map((session, index) => {
     const previous = ascending[index - 1];
-    const distance = previous ? Math.max(0, session.odometer - previous.odometer) : 0;
-    const consumption = distance > 0 ? (session.energy / distance) * 100 : 0;
+    const { distance, consumedEnergy, consumption } = calculateIntervalConsumption(
+      session,
+      previous,
+      batteryCapacityKwh,
+    );
     const date = getSessionDate(session);
     const fullLabel = new Intl.DateTimeFormat("tr-TR", {
       day: "numeric",
@@ -74,6 +83,7 @@ function createSessionPoints(sessions: ChargingSession[]): AggregatedPoint[] {
       label: fullLabel,
       shortLabel: `${date.getDate()} ${monthShort(date)}`,
       energy: session.energy,
+      consumedEnergy,
       consumption,
       distance,
       cost: getCost(session),
@@ -81,8 +91,12 @@ function createSessionPoints(sessions: ChargingSession[]): AggregatedPoint[] {
   });
 }
 
-function createGroupedPoints(sessions: ChargingSession[], range: Exclude<ChartRange, "sessions">) {
-  const sessionPoints = createSessionPoints(sessions);
+function createGroupedPoints(
+  sessions: ChargingSession[],
+  range: Exclude<ChartRange, "sessions">,
+  batteryCapacityKwh?: number | null,
+) {
+  const sessionPoints = createSessionPoints(sessions, batteryCapacityKwh);
   const ascendingSessions = [...sessions].sort(
     (a, b) => getSessionDate(a).getTime() - getSessionDate(b).getTime(),
   );
@@ -118,6 +132,7 @@ function createGroupedPoints(sessions: ChargingSession[], range: Exclude<ChartRa
     const points = group.indexes.map((index) => sessionPoints[index]);
     const count = Math.max(points.length, 1);
     const totalEnergy = points.reduce((sum, point) => sum + point.energy, 0);
+    const totalConsumedEnergy = points.reduce((sum, point) => sum + point.consumedEnergy, 0);
     const totalDistance = points.reduce((sum, point) => sum + point.distance, 0);
     const totalCost = points.reduce((sum, point) => sum + point.cost, 0);
 
@@ -126,7 +141,8 @@ function createGroupedPoints(sessions: ChargingSession[], range: Exclude<ChartRa
       label: group.label,
       shortLabel: group.shortLabel,
       energy: totalEnergy / count,
-      consumption: totalDistance > 0 ? (totalEnergy / totalDistance) * 100 : 0,
+      consumedEnergy: totalConsumedEnergy / count,
+      consumption: totalDistance > 0 ? (totalConsumedEnergy / totalDistance) * 100 : 0,
       distance: totalDistance / count,
       cost: totalCost / count,
     };
@@ -150,13 +166,13 @@ function toMetricPoints(points: AggregatedPoint[], metric: MetricKey): MetricCha
     }));
 }
 
-function StatisticsView({ summary, sessions }: StatisticsViewProps) {
+function StatisticsView({ summary, sessions, batteryCapacityKwh }: StatisticsViewProps) {
   const [range, setRange] = useState<ChartRange>("sessions");
 
   const chartPoints = useMemo(() => {
-    if (range === "sessions") return createSessionPoints(sessions);
-    return createGroupedPoints(sessions, range);
-  }, [range, sessions]);
+    if (range === "sessions") return createSessionPoints(sessions, batteryCapacityKwh);
+    return createGroupedPoints(sessions, range, batteryCapacityKwh);
+  }, [range, sessions, batteryCapacityKwh]);
 
   const rangeLabel = RANGE_OPTIONS.find((option) => option.id === range)?.label ?? "";
   const averagePrefix = range === "sessions" ? "" : "ORTALAMA ";
