@@ -1,0 +1,5 @@
+ChargeFlow v1.4
+
+- İstatistikler sayfası açıldığında varsayılan grafik aralığı artık "Bütün Şarjlar"dır.
+- Grafik sıralamasında "Ortalama Tüketim" en üste taşındı.
+- Enerji grafiği ikinci sıraya alındı.

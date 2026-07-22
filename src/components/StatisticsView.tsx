@@ -143,7 +143,7 @@ function toMetricPoints(points: AggregatedPoint[], metric: MetricKey): MetricCha
 }
 
 function StatisticsView({ summary, sessions }: StatisticsViewProps) {
-  const [range, setRange] = useState<ChartRange>("monthly");
+  const [range, setRange] = useState<ChartRange>("sessions");
 
   const chartPoints = useMemo(() => {
     if (range === "sessions") return createSessionPoints(sessions);
@@ -180,18 +180,18 @@ function StatisticsView({ summary, sessions }: StatisticsViewProps) {
 
       <section className="statistics-chart-stack">
         <MonthlyMetricChart
-          eyebrow={`${averagePrefix}ENERJİ`}
-          title={range === "sessions" ? "Şarj Başına Enerji" : "Ortalama Şarj Enerjisi"}
-          unit="kWh"
-          points={toMetricPoints(chartPoints, "energy")}
-          maximumFractionDigits={1}
-          ariaPeriodLabel={rangeLabel}
-        />
-        <MonthlyMetricChart
           eyebrow={`${averagePrefix}VERİMLİLİK`}
           title="Ortalama Tüketim"
           unit="kWh/100 km"
           points={toMetricPoints(chartPoints, "consumption")}
+          maximumFractionDigits={1}
+          ariaPeriodLabel={rangeLabel}
+        />
+        <MonthlyMetricChart
+          eyebrow={`${averagePrefix}ENERJİ`}
+          title={range === "sessions" ? "Şarj Başına Enerji" : "Ortalama Şarj Enerjisi"}
+          unit="kWh"
+          points={toMetricPoints(chartPoints, "energy")}
           maximumFractionDigits={1}
           ariaPeriodLabel={rangeLabel}
         />
